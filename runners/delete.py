@@ -1,8 +1,8 @@
 import sys
 
-sys.path.append("/app")
+sys.path.append("../")
 
-import json, os, pinecone
+import json, os, argparse
 import src
 
 
@@ -11,7 +11,7 @@ SUCCESS_RATE_THRESHOLD = 0.8
 PINECONE_ID_FIELD = "point_id"
 
 
-def main():
+def main(run: bool = False):
     secrets = json.loads(os.getenv("SECRETS_JSON"))
 
     bq_client, pinecone_index, _, _, _ = src.config.init_clients(
@@ -22,6 +22,9 @@ def main():
     iterator = src.bigquery.run_query(bq_client, query, to_list=False)
 
     print(f"Total rows: {iterator.total_rows:,}")
+
+    if not run: 
+        return 
 
     success_rate, failed = src.pinecone.delete_points_from_bigquery_iterator(
         index=pinecone_index,
@@ -52,4 +55,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--run", "-r", type=lambda x: x.lower() == "true", default=False)
+    args = parser.parse_args()
+
+    print(f"Running: {args.run}")
+    main(run=args.run)

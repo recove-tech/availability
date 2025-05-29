@@ -13,7 +13,7 @@ NUM_ITEMS = 100000
 VINTED_DRESSING_ALPHA = 0.
 TOP_BRANDS_ALPHA = 0.3
 IS_WOMEN_ALPHA = 0.7
-SORT_BY_DATE_ALPHA = 0.5
+SORT_BY_DATE_ALPHA = 0.2
 RUNNER_MODE = "api"
 
 
@@ -57,27 +57,18 @@ def get_loader(
         "sort_by_date": runner.config.sort_by_date,
     }
 
-    query = src.bigquery.query_items(index=runner.config.index, **query_kwargs)
+    query = src.bigquery.query_items(**query_kwargs)
 
-    loader = src.bigquery.run_query(
+    return src.bigquery.run_query(
         client=runner.config.bq_client, query=query, to_list=False
     )
-
-    if loader.total_rows == 0:
-        runner.config.index = 0
-        query = src.bigquery.query_items(index=runner.config.index, **query_kwargs)
-        loader = src.bigquery.run_query(
-            client=runner.config.bq_client, query=query, to_list=False
-        )
-
-    return loader
 
 
 def get_loader_from_pinecone(
     runner: src.runner.Runner
 ) -> src.models.PineconeDataLoader:
     query = src.bigquery.query_vector_ids(
-        n=src.pinecone.BATCH_SIZE, index=runner.config.index, shuffle=True
+        n=src.pinecone.BATCH_SIZE, shuffle=True
     )
 
     response = src.bigquery.run_query(
@@ -91,9 +82,9 @@ def get_loader_from_pinecone(
     )
 
 
-if __name__ == "__main__":
+def main():
     runner = init_runner()
-    print(f"Config: {runner.config.id} | Index: {runner.config.index}")
+    print(f"Config: {runner.config}")
 
     if from_pinecone():
         while True:
@@ -102,12 +93,8 @@ if __name__ == "__main__":
 
     else:
         data_loader = get_loader(runner)
-
-        if src.bigquery.update_job_index(
-            runner.config.bq_client, runner.config.id, runner.config.index + 1
-        ):
-            print(
-                f"Updated job index for {runner.config.id} to {runner.config.index+1}."
-            )
-
         runner.run(data_loader)
+
+
+if __name__ == "__main__":
+    main()

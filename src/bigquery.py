@@ -72,10 +72,8 @@ def query_items(
     only_top_brands: bool = False,
     only_vintage_dressing: bool = False,
     sort_by_date: bool = False,
-    sort_by_likes: bool = False,
     item_ids: Optional[List[str]] = None,
     n: Optional[int] = None,
-    index: Optional[int] = None,
     is_women: Optional[bool] = None,
 ) -> str:
     if only_vintage_dressing and only_top_brands:
@@ -83,10 +81,6 @@ def query_items(
             "Cannot set both only_vintage_dressing and only_top_brands to True"
         )
 
-    if sort_by_date and sort_by_likes:
-        raise ValueError("Cannot set both sort_by_date and sort_by_likes to True")
-
-    order_by_prefix = " ORDER BY"
     where_prefix = "\nAND"
 
     query = f"""
@@ -113,13 +107,11 @@ def query_items(
 
     if sort_by_date:
         query += f"\nORDER BY created_at DESC"
-        order_by_prefix = " AND"
+    else:
+        query += f"\nORDER BY RAND()"
 
-    if sort_by_likes:
-        query += f" {order_by_prefix} num_likes DESC"
-
-    if n and index is not None:
-        query += f"\nLIMIT {n} OFFSET {index * n}"
+    if n:
+        query += f"\nLIMIT {n}"
 
     return query
 

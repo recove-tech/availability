@@ -52,6 +52,20 @@ class JobConfig:
 
         self._get_id()
 
+    def __repr__(self):
+        return (
+            f"Config(id={self.id}, index={self.index}, "
+            f"only_top_brands={self.only_top_brands}, "
+            f"only_vintage_dressing={self.only_vintage_dressing}, "
+            f"sort_by_likes={self.sort_by_likes}, "
+            f"sort_by_date={self.sort_by_date}, "
+            f"from_interactions={self.from_interactions}, "
+            f"from_saved={self.from_saved}, is_women={self.is_women})"
+        )
+
+    def __str__(self):
+        return self.__repr__()
+
     def set_index(self, index: Optional[int] = None):
         if index is None:
             self.index = get_job_index(self.bq_client, self.id)

@@ -10,7 +10,6 @@ import src
 
 NUM_ITEMS = 1000
 NUM_NEIGHBORS = 50
-SHUFFLE = True
 RUNNER_MODE = "api"
 
 
@@ -39,32 +38,19 @@ def init_runner() -> src.runner.Runner:
 def load_point_ids(runner: src.runner.Runner) -> List[str]:
     query = src.bigquery.query_interaction_items(
         n=NUM_ITEMS,
-        shuffle=SHUFFLE,
+        shuffle=True,
     )
 
     loader = src.bigquery.run_query(
         client=runner.config.bq_client, query=query, to_list=False
     )
 
-    if loader.total_rows == 0:
-        runner.config.index = 0
-        loader = load_point_ids(runner)
-
-    point_ids = []
-    for row in loader:
-        if row.point_id not in point_ids:
-            point_ids.append(row.point_id)
-
-    return point_ids
+    return [row.point_id for row in loader]
 
 
-if __name__ == "__main__":
+def main():
     runner = init_runner()
-
-    if not SHUFFLE and src.bigquery.update_job_index(
-        runner.config.bq_client, runner.config.id, runner.config.index + 1
-    ):
-        print(f"Updated job index for {runner.config.id} to {runner.config.index+1}.")
+    print(f"Config: {runner.config}")
 
     point_ids = load_point_ids(runner)
     loop = tqdm.tqdm(iterable=point_ids, total=len(point_ids))
@@ -77,3 +63,7 @@ if __name__ == "__main__":
         )
 
         runner.run(data_loader, loop)
+
+
+if __name__ == "__main__":
+    main()
