@@ -13,7 +13,7 @@ VINTED_DRESSING_ALPHA = 0.0
 TOP_BRANDS_ALPHA = 0.3
 IS_WOMEN_ALPHA = 0.8
 SORT_BY_DATE_ALPHA = 0.2
-RUNNER_MODE = "api"
+RUNNER_MODE = "driver"
 
 
 def init_runner() -> src.runner.Runner:

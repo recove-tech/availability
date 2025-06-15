@@ -10,7 +10,7 @@ import src
 
 NUM_ITEMS = 1000
 NUM_NEIGHBORS = 50
-RUNNER_MODE = "api"
+RUNNER_MODE = "driver"
 
 
 def init_runner() -> src.runner.Runner:
