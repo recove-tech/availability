@@ -82,6 +82,6 @@ if __name__ == "__main__":
 
         src.bigquery.update_job_index(
             client=bq_client,
-            job_id=JOB_ID,
+            job_id=runner.config.id,
             index=runner.config.index,
         )
