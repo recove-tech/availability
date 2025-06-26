@@ -70,11 +70,10 @@ class JobConfig:
         return self.__repr__()
 
     def set_index(self, index: Optional[int] = None):
-        if self.index is None:
-            if index is None:
-                self.index = get_job_index(self.bq_client, self.id)
-            else:
-                self.index = index
+        if index is None:
+            self.index = get_job_index(self.bq_client, self.id)
+        else:
+            self.index = index
 
     def _get_id(self):
         self.index = 0
