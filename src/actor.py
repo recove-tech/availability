@@ -11,7 +11,10 @@ def get_actor_response(
     run = client.actor(actor_id).call(run_input=run_input)
     response = client.dataset(run["defaultDatasetId"]).list_items().items
 
-    return response[0].get("data", [])
+    if isinstance(response, list):
+        return response[0].get("data", [])
+    else:
+        return []
 
 
 def generate_api_url(item_id: int) -> str:
