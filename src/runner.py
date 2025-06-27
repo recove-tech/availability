@@ -1,90 +1,51 @@
-from typing import List, Tuple, Union, Optional, Dict
+from typing import List, Tuple, Optional, Dict
 from collections import defaultdict
 from datetime import datetime
 
-import tqdm
 from google.cloud import bigquery
 
-import src
-from src.models import JobConfig
+from src.models import Config, PineconeDataLoader
+from src.actor import get_actor_response
+from src.bigquery import query_pinecone_points, run_query, insert_rows_json
+from src.supabase import set_items_unavailable
+from src.pinecone import delete_points_from_ids
 
 
-DOMAIN = "fr"
-UPDATE_EVERY = 50
-SUCCESS_RATE_THRESHOLD = 0.8
+SUCCESS_RATE_THRESHOLD = 0.9
 
 
 class Runner:
-    def __init__(self, config: JobConfig):
+    def __init__(self, config: Config):
         self.config = config
-        self.update_every = UPDATE_EVERY
 
     def run(
         self,
-        data_loader: Union[bigquery.table.RowIterator, src.models.PineconeDataLoader],
-        loop: Optional[tqdm.tqdm] = None,
-    ) -> None:
-        vinted_ids, item_ids, point_ids = [], defaultdict(list), defaultdict(list)
-        n, n_success, n_available, n_unavailable, n_updated = 0, 0, 0, 0, 0
+        data_loader: PineconeDataLoader,
+    ) -> Tuple[int, bool, List[int]]:
+        status_codes = []
+        vinted_ids = data_loader.vinted_ids
 
-        if loop is None:
-            iterator = tqdm.tqdm(iterable=data_loader, total=data_loader.total_rows)
-        else:
-            iterator = data_loader
+        apify_response = get_actor_response(
+            client=self.config.apify_client,
+            actor_id=self.config.apify_actor_id,
+            item_ids=vinted_ids,
+        )
 
-        for entry in iterator:
-            n += 1
+        item_ids, point_ids, vinted_ids = defaultdict(list), defaultdict(list), []
 
-            if not isinstance(entry, src.models.PineconeEntry):
-                entry = src.models.PineconeEntry.from_dict(dict(entry))
+        for entry, response in zip(data_loader, apify_response):
+            is_available = response.get("is_available")
+            status_codes.append(response.get("status_code"))
 
-            (
-                vinted_ids,
-                item_ids,
-                point_ids,
-                n_available,
-                n_unavailable,
-                n_success,
-            ) = self._process_entry(
-                entry,
-                vinted_ids,
-                item_ids,
-                point_ids,
-                n_available,
-                n_unavailable,
-                n_success,
-            )
+            if not is_available:
+                item_ids[entry.category_type].append(entry.id)
+                point_ids[entry.category_type].append(entry.point_id)
+                vinted_ids.append(entry.vinted_id)
 
-            if self._check_update(n, data_loader):
-                success = self._update(item_ids, vinted_ids, point_ids)
+        success = self._update(item_ids, vinted_ids, point_ids)
+        n_sold = len(vinted_ids)
 
-                if success:
-                    n_updated += len(vinted_ids)
-
-                item_ids, vinted_ids, point_ids = (
-                    defaultdict(list),
-                    [],
-                    defaultdict(list),
-                )
-
-            info = (
-                f"Processed: {n} | "
-                f"Success: {n_success} | "
-                f"Success rate: {n_success / n:.2f} | "
-                f"Available: {n_available} | "
-                f"Unavailable: {n_unavailable} | "
-                f"Updated: {n_updated}"
-            )
-            
-            print(info)
-            
-
-    def _check_update(
-        self,
-        n: int,
-        data_loader: Union[bigquery.table.RowIterator, src.models.PineconeDataLoader],
-    ) -> bool:
-        return n % self.update_every == 0 or n == data_loader.total_rows
+        return n_sold, success, status_codes
 
     def _update(
         self,
@@ -93,16 +54,17 @@ class Runner:
         point_ids: Dict[str, List[str]],
     ) -> Optional[bool]:
         current_time = datetime.now().isoformat()
+        success_rate = 0.0
 
         for namespace, namespace_point_ids in point_ids.items():
             namespace_item_ids = item_ids.get(namespace, [])
 
             if len(namespace_point_ids) == 0:
-                pinecone_points_query = src.bigquery.query_pinecone_points(
+                pinecone_points_query = query_pinecone_points(
                     item_ids=namespace_item_ids
                 )
 
-                loader = src.bigquery.run_query(
+                loader = run_query(
                     self.config.bq_client, pinecone_points_query, to_list=False
                 )
 
@@ -112,92 +74,22 @@ class Runner:
                 namespace_point_ids = [row.point_id for row in loader]
 
             if self.config.supabase_client:
-                success = src.supabase.set_items_unavailable(
+                success = set_items_unavailable(
                     client=self.config.supabase_client,
                     item_ids=namespace_item_ids,
                 )
 
-            success_rate, failed = src.pinecone.delete_points_from_ids(
+            success_rate, failed = delete_points_from_ids(
                 index=self.config.pinecone_index,
                 ids=namespace_point_ids,
                 namespace=namespace,
                 verbose=False,
             )
 
-            if success_rate > SUCCESS_RATE_THRESHOLD:
-                try:
-                    rows = [
-                        {"vinted_id": vinted_id, "updated_at": current_time}
-                        for vinted_id in vinted_ids
-                    ]
+        if success_rate > SUCCESS_RATE_THRESHOLD:
+            return insert_rows_json(
+                client=self.config.bq_client,
+                vinted_ids=vinted_ids,
+            )
 
-                    errors = self.config.bq_client.insert_rows_json(
-                        table=f"{src.enums.VINTED_DATASET_ID}.{src.enums.SOLD_TABLE_ID}",
-                        json_rows=rows,
-                    )
-
-                    return not errors
-
-                except:
-                    return False
-
-            return False
-
-    def _process_entry(
-        self,
-        entry: src.models.PineconeEntry,
-        vinted_ids: List[str],
-        item_ids: Dict[str, List[str]],
-        point_ids: Dict[str, List[str]],
-        n_available: int,
-        n_unavailable: int,
-        n_success: int,
-    ) -> Tuple[
-        List[str],
-        Dict[str, List[str]],
-        Dict[str, List[str]],
-        int,
-        int,
-        int,
-    ]:
-        try:
-            status = self._get_status(entry)
-        except Exception as e:
-            status = src.models.ItemStatus.UNKNOWN
-
-        is_available = src.status.is_available(status)
-        success = status != src.models.ItemStatus.UNKNOWN
-
-        n_available += int(is_available)
-        n_success += int(success)
-
-        if not is_available:
-            n_unavailable += 1
-
-            vinted_ids.append(entry.vinted_id)
-            
-            if entry.category_type:
-                item_ids[entry.category_type].append(entry.id)
-                point_ids[entry.category_type].append(entry.point_id)
-
-        return (
-            vinted_ids,
-            item_ids,
-            point_ids,
-            n_available,
-            n_unavailable,
-            n_success,
-        )
-
-    def _get_status(self, entry: src.models.PineconeEntry) -> src.models.ItemStatus:
-        status = src.status.get_status_api(
-            self.config.vinted_client, int(entry.vinted_id)
-        )
-
-        if status in [
-            src.models.ItemStatus.UNKNOWN,
-            src.models.ItemStatus.NOT_FOUND,
-        ]:
-            status = src.status.get_status_requests(entry.url)
-
-        return status
+        return False

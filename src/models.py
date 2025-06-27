@@ -6,26 +6,17 @@ from random import random
 from google.cloud import bigquery
 from pinecone import Pinecone, ScoredVector
 from supabase import Client
+from apify_client import ApifyClient
 
 from .bigquery import get_job_index
-from .vinted.client import Vinted
-
-
-class ItemStatus(Enum):
-    AVAILABLE = "available"
-    SOLD = "sold"
-    NOT_FOUND = "not_found"
-    UNKNOWN = "unknown"
 
 
 @dataclass
-class JobConfig:
+class Config:
     bq_client: bigquery.Client
     pinecone_index: Pinecone.Index
-    vinted_client: Vinted
-    only_top_brands: bool
-    only_vintage_dressing: bool
-    sort_by_likes: bool
+    apify_client: ApifyClient
+    apify_actor_id: str
     sort_by_date: bool
     from_interactions: bool
     from_saved: bool
@@ -34,27 +25,12 @@ class JobConfig:
     supabase_client: Optional[Client] = None
 
     def __post_init__(self):
-        if self.only_vintage_dressing and self.only_top_brands:
-            if random() < 0.5:
-                self.only_vintage_dressing = False
-            else:
-                self.only_top_brands = False
-
-        if self.sort_by_date and self.sort_by_likes:
-            if random() < 0.5:
-                self.sort_by_date = False
-            else:
-                self.sort_by_likes = False
-
         self._get_id()
         self.set_index()
 
     def __repr__(self):
         return (
             f"Config(id={self.id}, index={self.index}, "
-            f"only_top_brands={self.only_top_brands}, "
-            f"only_vintage_dressing={self.only_vintage_dressing}, "
-            f"sort_by_likes={self.sort_by_likes}, "
             f"sort_by_date={self.sort_by_date}, "
             f"from_interactions={self.from_interactions}, "
             f"from_saved={self.from_saved}, is_women={self.is_women}, "
@@ -75,24 +51,18 @@ class JobConfig:
 
         if self.from_interactions:
             self.id = "interactions"
-        elif self.only_top_brands:
-            self.id = "top_brands"
-        elif self.only_vintage_dressing:
-            self.id = "vintage_dressing"
         elif self.from_saved:
             self.id = f"saved_{self.ascending_saved}"
             self.index = None
         else:
             self.id = "all"
 
-        if self.sort_by_likes:
-            self.id += "_likes"
-        elif self.sort_by_date:
+        if self.sort_by_date:
             self.id += "_date"
 
         if not self.from_saved:
             if self.is_women is not None:
-                self.id += f"_women_{self.is_women}"
+                self.id += "_women" if self.is_women else "_men"
 
         self.id = self.id.lower()
 
@@ -147,3 +117,7 @@ class PineconeDataLoader:
     @property
     def total_rows(self) -> int:
         return len(self.entries)
+
+    @property
+    def vinted_ids(self) -> List[str]:
+        return [entry.vinted_id for entry in self.entries]
