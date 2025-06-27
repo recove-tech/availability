@@ -16,14 +16,15 @@ SECRETS_PATH = "../secrets.json"
 def init_runner() -> src.runner.Runner:
     secrets = src.utils.load_json(SECRETS_PATH)
 
-    bq_client, pinecone_index, vinted_client, _ = src.config.init_clients(
+    bq_client, pinecone_index, apify_client, _ = src.config.init_clients(
         secrets=secrets,
     )
 
     config = src.config.init_config(
         bq_client=bq_client,
         pinecone_index=pinecone_index,
-        vinted_client=vinted_client,
+        apify_client=apify_client,
+        apify_actor_id=secrets.get("APIFY_ACTOR_ID"),
         from_interactions=True,
     )
 
@@ -53,6 +54,7 @@ def main():
     runner = init_runner()
     print(f"Config: {runner.config}")
 
+    n, n_sold, n_success = 0, 0, 0
     point_ids, namespaces = load_data(runner)
     loop = tqdm.tqdm(iterable=zip(point_ids, namespaces), total=len(point_ids))
 
@@ -67,7 +69,13 @@ def main():
             n=NUM_NEIGHBORS,
         )
 
-        runner.run(data_loader, loop)
+        n_sold_batch, success, status_codes_batch = runner.run(loader)
+
+        n_sold += n_sold_batch
+        n_success += int(success)
+        n += 1
+
+        print(f"Batch #{n} | Sold: {n_sold_total} | Success rate: {n_success / n:.2f}")
 
 
 if __name__ == "__main__":
