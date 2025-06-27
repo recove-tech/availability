@@ -78,8 +78,6 @@ def main():
 
             src.utils.display_status_code_stats(status_codes)
 
-            print("-" * 100)
-
 
 if __name__ == "__main__":
     main()
