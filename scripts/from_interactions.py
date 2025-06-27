@@ -62,7 +62,7 @@ def main():
         if namespace is None:
             continue
 
-        data_loader = src.pinecone.get_neighbors(
+        loader = src.pinecone.get_neighbors(
             index=runner.config.pinecone_index,
             namespace=namespace,
             point_id=point_id,
@@ -75,7 +75,7 @@ def main():
         n_success += int(success)
         n += 1
 
-        print(f"Batch #{n} | Sold: {n_sold_total} | Success rate: {n_success / n:.2f}")
+        print(f"Batch #{n} | Sold: {n_sold} | Success rate: {n_success / n:.2f}")
 
 
 if __name__ == "__main__":
