@@ -176,7 +176,7 @@ def query_interaction_items(
     return query
 
 
-def query_pinecone_points(item_ids: List[int]) -> str:
+def query_pinecone_points(item_ids: List[str]) -> str:
     item_ids_str = ", ".join([f"'{item_id}'" for item_id in item_ids])
 
     return f"""

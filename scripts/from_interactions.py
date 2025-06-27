@@ -1,38 +1,33 @@
 import sys
 
-sys.path.append("/app")
+sys.path.append("../")
 
 from typing import List
-import json, os, tqdm
+import tqdm
 
 import src
 
 
 NUM_ITEMS = 1000
 NUM_NEIGHBORS = 50
-RUNNER_MODE = "driver"
+SECRETS_PATH = "../secrets.json"
 
 
 def init_runner() -> src.runner.Runner:
-    secrets = json.loads(os.getenv("SECRETS_JSON"))
+    secrets = src.utils.load_json(SECRETS_PATH)
 
-    bq_client, pinecone_index, vinted_client, driver, _ = src.config.init_clients(
+    bq_client, pinecone_index, vinted_client, _ = src.config.init_clients(
         secrets=secrets,
-        mode=RUNNER_MODE,
     )
 
     config = src.config.init_config(
         bq_client=bq_client,
         pinecone_index=pinecone_index,
         vinted_client=vinted_client,
-        driver=driver,
         from_interactions=True,
     )
 
-    return src.runner.Runner(
-        mode=RUNNER_MODE,
-        config=config,
-    )
+    return src.runner.Runner(config=config)
 
 
 def load_data(runner: src.runner.Runner) -> List[str]:

@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Literal, Optional, Dict
 import random, requests
 
 from .endpoints import Endpoints
@@ -7,20 +7,28 @@ from .models import VintedResponse
 
 
 class Vinted:
-    def __init__(self, domain: Domain = "fr") -> None:
+    def __init__(
+        self, 
+        domain: Domain = "fr", 
+        proxies: Optional[Dict[str, str]] = None,
+    ) -> None:
         self.base_url = f"https://www.vinted.{domain}"
         self.api_url = f"{self.base_url}/api/v2"
         self.headers = REQUESTS_HEADERS.copy()
         self.session = requests.Session()
+        self.proxies = proxies
         self.cookies = self.fetch_cookies()
 
     def fetch_cookies(self):
-        response = self.session.get(self.base_url, headers=self.headers)
+        response = self.session.get(self.base_url, headers=self.headers, proxies=self.proxies)
         return response.cookies
 
     def _call(self, method: Literal["get"], *args, **kwargs):
         if hasattr(self, "headers") and "User-Agent" in self.headers:
             self.headers["User-Agent"] = random.choice(USER_AGENTS)
+
+        if self.proxies:
+            kwargs["proxies"] = self.proxies
 
         return self.session.request(
             method=method, headers=self.headers, cookies=self.cookies, *args, **kwargs
@@ -34,6 +42,7 @@ class Vinted:
         else:
             url = self.api_url + endpoint.value
 
+        print(url)
         response = self._call(method="get", url=url, *args, **kwargs)
         status_code = response.status_code
 

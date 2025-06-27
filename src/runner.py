@@ -6,25 +6,17 @@ import tqdm
 from google.cloud import bigquery
 
 import src
-from src.models import RunnerMode, JobConfig
+from src.models import JobConfig
 
 
 DOMAIN = "fr"
-DRIVER_RESTART_EVERY = 500
 UPDATE_EVERY = 50
 SUCCESS_RATE_THRESHOLD = 0.8
 
 
 class Runner:
-    def __init__(
-        self,
-        mode: RunnerMode,
-        config: JobConfig,
-    ):
-        self.mode = mode
+    def __init__(self, config: JobConfig):
         self.config = config
-
-        self.driver_restart_every = DRIVER_RESTART_EVERY
         self.update_every = UPDATE_EVERY
 
     def run(
@@ -63,7 +55,7 @@ class Runner:
                 n_success,
             )
 
-            if self._check_update(n, data_loader, item_ids, vinted_ids):
+            if self._check_update(n, data_loader):
                 success = self._update(item_ids, vinted_ids, point_ids)
 
                 if success:
@@ -83,18 +75,14 @@ class Runner:
                 f"Unavailable: {n_unavailable} | "
                 f"Updated: {n_updated}"
             )
-
-            if loop is not None:
-                loop.set_description(info)
-            else:
-                iterator.set_description(info)
+            
+            print(info)
+            
 
     def _check_update(
         self,
         n: int,
         data_loader: Union[bigquery.table.RowIterator, src.models.PineconeDataLoader],
-        item_ids: List[str],
-        vinted_ids: List[str],
     ) -> bool:
         return n % self.update_every == 0 or n == data_loader.total_rows
 
@@ -103,7 +91,7 @@ class Runner:
         item_ids: Dict[str, List[str]],
         vinted_ids: List[str],
         point_ids: Dict[str, List[str]],
-    ) -> bool:
+    ) -> Optional[bool]:
         current_time = datetime.now().isoformat()
 
         for namespace, namespace_point_ids in point_ids.items():
@@ -187,8 +175,10 @@ class Runner:
             n_unavailable += 1
 
             vinted_ids.append(entry.vinted_id)
-            item_ids[entry.category_type].append(entry.id)
-            point_ids[entry.category_type].append(entry.point_id)
+            
+            if entry.category_type:
+                item_ids[entry.category_type].append(entry.id)
+                point_ids[entry.category_type].append(entry.point_id)
 
         return (
             vinted_ids,
@@ -200,54 +190,14 @@ class Runner:
         )
 
     def _get_status(self, entry: src.models.PineconeEntry) -> src.models.ItemStatus:
-        if self.mode == "api":
-            status = src.status.get_status_api(
-                self.config.vinted_client, int(entry.vinted_id)
-            )
+        status = src.status.get_status_api(
+            self.config.vinted_client, int(entry.vinted_id)
+        )
 
-            if status in [
-                src.models.ItemStatus.UNKNOWN,
-                src.models.ItemStatus.NOT_FOUND,
-            ]:
-                status = src.status.get_status_web(entry.url)
-
-            if status == src.models.ItemStatus.UNKNOWN:
-                self._switch_mode("driver")
-
-                return self._get_status(entry)
-
-        else:
-            status = src.status.get_status_web(entry.url, self.config.driver)
-            switch_mode = status == src.models.ItemStatus.UNKNOWN
-
-            if status in [
-                src.models.ItemStatus.UNKNOWN,
-                src.models.ItemStatus.NOT_FOUND,
-            ]:
-                status = src.status.get_status_api(
-                    client=self.config.vinted_client,
-                    item_id=entry.vinted_id,
-                )
-
-            if switch_mode:
-                self._switch_mode("api")
-
-                return self._get_status(entry)
+        if status in [
+            src.models.ItemStatus.UNKNOWN,
+            src.models.ItemStatus.NOT_FOUND,
+        ]:
+            status = src.status.get_status_requests(entry.url)
 
         return status
-
-    def _switch_mode(self, new_mode: RunnerMode) -> None:
-        self.mode = new_mode
-
-        if new_mode == "api":
-            self._quit_driver(restart=False)
-        else:
-            self._quit_driver(restart=True)
-
-    def _quit_driver(self, restart: bool = False):
-        if self.config.driver:
-            self.config.driver.quit()
-            self.config.driver = None
-
-        if restart:
-            self.config.driver = src.driver.init_webdriver()

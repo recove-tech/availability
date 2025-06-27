@@ -1,11 +1,19 @@
 from typing import Callable, Any
-import json
-import time, requests
+
+import time, requests, json
 from bs4 import BeautifulSoup
 
 from .enums import *
 from .models import ItemStatus
 
+
+def load_json(filepath: str) -> Any:
+    try:
+        with open(filepath, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        print(e)
+        return None
 
 def save_json(data: Any, filepath: str) -> bool:
     try:
@@ -23,20 +31,15 @@ def retry_with_backoff(func: Callable, *args, **kwargs) -> Any:
 
     while retries < MAX_RETRIES:
         try:
-            result = func(*args, **kwargs)
+            response = func(*args, **kwargs)
 
-            if isinstance(result, tuple) and len(result) == 2:
-                status_code = result[1]
+            if response.status_code in INVALID_STATUS_CODES:
+                time.sleep(sleep_time)
+                sleep_time = min(sleep_time * 2, MAX_SLEEP_TIME)
+                retries += 1
+                continue
 
-                if status_code in INVALID_STATUS_CODES:
-                    time.sleep(sleep_time)
-                    sleep_time = min(sleep_time * 2, MAX_SLEEP_TIME)
-                    retries += 1
-                    continue
-
-                return result[0]
-
-            return result
+            return response
 
         except requests.exceptions.HTTPError as e:
             if e.response.status_code in INVALID_STATUS_CODES:
@@ -108,7 +111,7 @@ def _extract_rate_limit_message(soup: BeautifulSoup) -> bool:
     try:
         if soup.find(
             name=RATE_LIMIT_CONTAINER,
-            string=lambda s: s and RATE_LIMIT_MESSAGE.lower() in s.lower(),
+            string=lambda s: isinstance(s, str) and RATE_LIMIT_MESSAGE.lower() in s.lower(),
         ):
             return True
 
@@ -125,7 +128,7 @@ def _extract_wait_component(soup: BeautifulSoup) -> bool:
             return False
 
         verification_text = soup.find(
-            "p", string=lambda s: s and WAIT_VERIFICATION_TEXT in s
+            "p", string=lambda s: isinstance(s, str) and WAIT_VERIFICATION_TEXT in s
         )
         if not verification_text:
             return False

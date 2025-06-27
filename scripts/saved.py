@@ -1,16 +1,15 @@
 import sys
 
-sys.path.append("/app")
+sys.path.append("../")
 
-import json, os
 
 import src
 
 
 NUM_ITEMS = 1000
-RUNNER_MODE = "api"
 JOB_ID = "saved"
 ASCENDING_ALPHA = 0.0
+SECRETS_PATH = "../secrets.json"
 
 
 def init_runner() -> src.runner.Runner:
@@ -19,15 +18,11 @@ def init_runner() -> src.runner.Runner:
         supabase_client=supabase_client,
         pinecone_index=pinecone_index,
         vinted_client=vinted_client,
-        driver=driver,
         from_saved=True,
         saved_ascending_alpha=ASCENDING_ALPHA,
     )
 
-    return src.runner.Runner(
-        mode=RUNNER_MODE,
-        config=config,
-    )
+    return src.runner.Runner(config=config)
 
 
 def get_loader(runner: src.runner.Runner) -> src.models.PineconeDataLoader:
@@ -51,18 +46,16 @@ def get_loader(runner: src.runner.Runner) -> src.models.PineconeDataLoader:
 
 
 if __name__ == "__main__":
-    secrets = json.loads(os.getenv("SECRETS_JSON"))
-    global bq_client, pinecone_index, vinted_client, driver, supabase_client
+    secrets = src.utils.load_json(SECRETS_PATH)
+    global bq_client, pinecone_index, vinted_client, supabase_client
 
     (
         bq_client,
         pinecone_index,
         vinted_client,
-        driver,
         supabase_client,
     ) = src.config.init_clients(
         secrets=secrets,
-        mode=RUNNER_MODE,
         with_supabase=True,
     )
 

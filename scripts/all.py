@@ -1,9 +1,8 @@
 import sys
 
-sys.path.append("/app")
+sys.path.append("../")
 
 from typing import List, Dict
-import json, os
 
 import src
 
@@ -13,32 +12,27 @@ VINTED_DRESSING_ALPHA = 0.0
 TOP_BRANDS_ALPHA = 0.3
 IS_WOMEN_ALPHA = 0.8
 SORT_BY_DATE_ALPHA = 0.2
-RUNNER_MODE = "driver"
+SECRETS_PATH = "../secrets.json"
 
 
 def init_runner() -> src.runner.Runner:
-    secrets = json.loads(os.getenv("SECRETS_JSON"))
+    secrets = src.utils.load_json(SECRETS_PATH)
 
-    bq_client, pinecone_index, vinted_client, driver, _ = src.config.init_clients(
+    bq_client, pinecone_index, vinted_client, _ = src.config.init_clients(
         secrets=secrets,
-        mode=RUNNER_MODE,
     )
 
     config = src.config.init_config(
         bq_client=bq_client,
         pinecone_index=pinecone_index,
         vinted_client=vinted_client,
-        driver=driver,
         vintage_dressing_alpha=VINTED_DRESSING_ALPHA,
         top_brands_alpha=TOP_BRANDS_ALPHA,
         is_women_alpha=IS_WOMEN_ALPHA,
         sort_by_date_alpha=SORT_BY_DATE_ALPHA,
     )
 
-    return src.runner.Runner(
-        mode=RUNNER_MODE,
-        config=config,
-    )
+    return src.runner.Runner(config=config)
 
 
 def get_loader(

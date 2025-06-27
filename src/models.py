@@ -6,13 +6,9 @@ from random import random
 from google.cloud import bigquery
 from pinecone import Pinecone, ScoredVector
 from supabase import Client
-from selenium.webdriver.chrome.webdriver import WebDriver
 
 from .bigquery import get_job_index
 from .vinted.client import Vinted
-
-
-RunnerMode = Literal["api", "driver"]
 
 
 class ItemStatus(Enum):
@@ -35,7 +31,6 @@ class JobConfig:
     from_saved: bool
     is_women: bool
     ascending_saved: bool
-    driver: Optional[WebDriver] = None
     supabase_client: Optional[Client] = None
 
     def __post_init__(self):

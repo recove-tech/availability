@@ -4,24 +4,21 @@ import random
 from google.cloud import bigquery
 from pinecone import Pinecone
 from supabase import Client
-from selenium.webdriver.chrome.webdriver import WebDriver
 
-from .models import RunnerMode, JobConfig
+from .models import JobConfig
 from .vinted.client import Vinted
 from .bigquery import init_bigquery_client
-from .driver import init_webdriver
 from .supabase import init_supabase_client
 from .enums import PINECONE_INDEX_NAME
 
 
 def init_clients(
-    secrets: Dict, mode: RunnerMode = "api", with_supabase: bool = False
+    secrets: Dict, with_supabase: bool = False
 ) -> Tuple[
     bigquery.Client,
     Pinecone.Index,
     Vinted,
-    Optional[WebDriver],
-    Optional[Client],
+    Optional[Client]
 ]:
     gcp_credentials = secrets.get("GCP_CREDENTIALS")
     bq_client = init_bigquery_client(credentials_dict=gcp_credentials)
@@ -31,26 +28,21 @@ def init_clients(
 
     vinted_client = Vinted()
 
-    if mode == "api":
-        driver = None
-    else:
-        driver = init_webdriver()
-
     if with_supabase:
         supabase_client = init_supabase_client(
-            secrets.get("SUPABASE_URL"), secrets.get("SUPABASE_SERVICE_ROLE_KEY")
+            url=secrets.get("SUPABASE_URL"),
+            key=secrets.get("SUPABASE_SERVICE_ROLE_KEY"),
         )
     else:
         supabase_client = None
 
-    return bq_client, pinecone_index, vinted_client, driver, supabase_client
+    return bq_client, pinecone_index, vinted_client, supabase_client
 
 
 def init_config(
     bq_client: bigquery.Client,
     pinecone_index: Pinecone.Index,
     vinted_client: Vinted,
-    driver: Optional[WebDriver] = None,
     supabase_client: Optional[Client] = None,
     top_brands_alpha: float = 0.0,
     vintage_dressing_alpha: float = 0.0,
@@ -80,7 +72,6 @@ def init_config(
         supabase_client=supabase_client,
         pinecone_index=pinecone_index,
         vinted_client=vinted_client,
-        driver=driver,
         only_top_brands=only_top_brands,
         only_vintage_dressing=only_vintage_dressing,
         sort_by_likes=sort_by_likes,
