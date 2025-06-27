@@ -17,7 +17,8 @@ def init_runner() -> src.runner.Runner:
         bq_client=bq_client,
         supabase_client=supabase_client,
         pinecone_index=pinecone_index,
-        vinted_client=vinted_client,
+        apify_client=apify_client,
+        apify_actor_id=secrets.get("APIFY_ACTOR_ID"),
         from_saved=True,
         saved_ascending_alpha=ASCENDING_ALPHA,
     )
@@ -47,12 +48,12 @@ def get_loader(runner: src.runner.Runner) -> src.models.PineconeDataLoader:
 
 if __name__ == "__main__":
     secrets = src.utils.load_json(SECRETS_PATH)
-    global bq_client, pinecone_index, vinted_client, supabase_client
+    global bq_client, pinecone_index, apify_client, supabase_client
 
     (
         bq_client,
         pinecone_index,
-        vinted_client,
+        apify_client,
         supabase_client,
     ) = src.config.init_clients(
         secrets=secrets,
@@ -61,6 +62,7 @@ if __name__ == "__main__":
 
     runner = init_runner()
     index = runner.config.index
+    n, n_sold, n_success = 0, 0, 0
 
     while True:
         print(f"Config: {runner.config.id} | Index: {runner.config.index}")
@@ -70,7 +72,11 @@ if __name__ == "__main__":
         if len(data_loader.entries) == 0:
             raise Exception("No entries found")
 
-        runner.run(data_loader)
+        n_sold_batch, success, status_codes_batch = runner.run(loader)
+
+        n_sold += n_sold_batch
+        n_success += int(success)
+        n += 1
         runner.config.set_index(index + 1)
 
         src.bigquery.update_job_index(
@@ -78,3 +84,5 @@ if __name__ == "__main__":
             job_id=runner.config.id,
             index=runner.config.index,
         )
+
+        print(f"Batch #{n} | Sold: {n_sold_total} | Success rate: {n_success / n:.2f}")
