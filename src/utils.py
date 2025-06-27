@@ -15,6 +15,7 @@ def load_json(filepath: str) -> Any:
         print(e)
         return None
 
+
 def save_json(data: Any, filepath: str) -> bool:
     try:
         with open(filepath, "w", encoding="utf-8") as f:

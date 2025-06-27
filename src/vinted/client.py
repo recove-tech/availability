@@ -42,7 +42,6 @@ class Vinted:
         else:
             url = self.api_url + endpoint.value
 
-        print(url)
         response = self._call(method="get", url=url, *args, **kwargs)
         status_code = response.status_code
 
