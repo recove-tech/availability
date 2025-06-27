@@ -67,9 +67,9 @@ if __name__ == "__main__":
     while True:
         print(f"Config: {runner.config.id} | Index: {runner.config.index}")
 
-        data_loader = get_loader(runner)
+        loader = get_loader(runner)
 
-        if len(data_loader.entries) == 0:
+        if len(loader.entries) == 0:
             raise Exception("No entries found")
 
         n_sold_batch, success, status_codes_batch = runner.run(loader)
@@ -85,4 +85,4 @@ if __name__ == "__main__":
             index=runner.config.index,
         )
 
-        print(f"Batch #{n} | Sold: {n_sold_total} | Success rate: {n_success / n:.2f}")
+        print(f"Batch #{n} | Sold: {n_sold} | Success rate: {n_success / n:.2f}")

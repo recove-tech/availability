@@ -72,9 +72,7 @@ def main():
             n_success += int(success)
             n += 1
 
-            print(
-                f"Batch #{n} | Sold: {n_sold_total} | Success rate: {n_success / n:.2f}"
-            )
+            print(f"Batch #{n} | Sold: {n_sold} | Success rate: {n_success / n:.2f}")
 
             src.utils.display_status_code_stats(status_codes)
 
