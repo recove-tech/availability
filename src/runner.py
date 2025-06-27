@@ -31,6 +31,9 @@ class Runner:
             item_ids=vinted_ids,
         )
 
+        if not apify_response:
+            return 0, False, []
+
         item_ids, point_ids, vinted_ids = defaultdict(list), defaultdict(list), []
 
         for entry, response in zip(data_loader, apify_response):
