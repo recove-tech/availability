@@ -11,7 +11,7 @@ def get_actor_response(
     run = client.actor(actor_id).call(run_input=run_input)
     response = client.dataset(run["defaultDatasetId"]).list_items().items
 
-    if isinstance(response, list):
+    if isinstance(response, list) and len(response) > 0:
         return response[0].get("data", [])
     else:
         return []
