@@ -16,19 +16,25 @@ SECRETS_PATH = "../secrets.json"
 def init_runner() -> src.runner.Runner:
     secrets = src.utils.load_json(SECRETS_PATH)
 
-    bq_client, pinecone_index, apify_client, _ = src.config.init_clients(
+    proxy_config = src.models.ProxyConfig(
+        password=secrets.get("APIFY_PROXY_PASSWORD"),
+    )
+
+    checker = src.checker.AsyncAvailabilityChecker(
+        proxy_config=proxy_config,
+    )
+
+    bq_client, pinecone_index, _ = src.config.init_clients(
         secrets=secrets,
     )
 
     config = src.config.init_config(
         bq_client=bq_client,
         pinecone_index=pinecone_index,
-        apify_client=apify_client,
-        apify_actor_id=secrets.get("APIFY_ACTOR_ID"),
         from_interactions=True,
     )
 
-    return src.runner.Runner(config=config)
+    return src.runner.Runner(config=config, checker=checker)
 
 
 def load_data(runner: src.runner.Runner) -> List[str]:
@@ -50,7 +56,7 @@ def load_data(runner: src.runner.Runner) -> List[str]:
     return point_ids, namespaces
 
 
-def main():
+async def main():
     runner = init_runner()
     print(f"Config: {runner.config}")
 
@@ -69,14 +75,24 @@ def main():
             n=NUM_NEIGHBORS,
         )
 
-        n_sold_batch, success, status_codes_batch = runner.run(loader)
+        try:
+            n_sold_batch, success = await runner.run_async(loader)
+        except Exception as e:
+            n_sold_batch, success = 0, False
 
         n_sold += n_sold_batch
         n_success += int(success)
         n += 1
 
-        print(f"Batch #{n} | Sold: {n_sold} | Success rate: {n_success / n:.2f}")
+        print(
+            f"Batch #{n} | "
+            f"Success: {success} | "
+            f"Sold: {n_sold} | "
+            f"Success rate: {n_success / n:.2f}"
+        )
 
 
 if __name__ == "__main__":
-    main()
+    import asyncio
+
+    asyncio.run(main())

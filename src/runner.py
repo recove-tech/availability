@@ -1,46 +1,39 @@
 from typing import List, Tuple, Optional, Dict
 from collections import defaultdict
 from datetime import datetime
+import asyncio
 
 from google.cloud import bigquery
 
 from src.models import Config, PineconeDataLoader
-from src.actor import get_actor_response
 from src.bigquery import query_pinecone_points, run_query, insert_rows_json
 from src.supabase import set_items_unavailable
 from src.pinecone import delete_points_from_ids
+from src.checker import BaseAvailabilityChecker, AsyncAvailabilityChecker
 
 
 SUCCESS_RATE_THRESHOLD = 0.9
 
 
 class Runner:
-    def __init__(self, config: Config):
+    def __init__(self, config: Config, checker: BaseAvailabilityChecker):
         self.config = config
+        self.checker = checker
 
     def run(
         self,
         data_loader: PineconeDataLoader,
-    ) -> Tuple[int, bool, List[int]]:
-        status_codes = []
+    ) -> Tuple[int, bool]:
         vinted_ids = data_loader.vinted_ids
+        api_response = self.checker.run(vinted_ids)
 
-        apify_response = get_actor_response(
-            client=self.config.apify_client,
-            actor_id=self.config.apify_actor_id,
-            item_ids=vinted_ids,
-        )
-
-        if not apify_response:
+        if not api_response:
             return 0, False, []
 
         item_ids, point_ids, vinted_ids = defaultdict(list), defaultdict(list), []
 
-        for entry, response in zip(data_loader, apify_response):
-            is_available = response.get("is_available")
-            status_codes.append(response.get("status_code"))
-
-            if not is_available:
+        for entry, status in zip(data_loader, api_response):
+            if not status.is_available:
                 item_ids[entry.category_type].append(entry.id)
                 point_ids[entry.category_type].append(entry.point_id)
                 vinted_ids.append(entry.vinted_id)
@@ -48,7 +41,31 @@ class Runner:
         success = self._update(item_ids, vinted_ids, point_ids)
         n_sold = len(vinted_ids)
 
-        return n_sold, success, status_codes
+        return n_sold, success
+
+    async def run_async(
+        self,
+        data_loader: PineconeDataLoader,
+    ) -> Tuple[int, bool]:
+        vinted_ids = data_loader.vinted_ids
+
+        api_response = await self.checker.run(vinted_ids)
+
+        if not api_response:
+            return 0, False, []
+
+        item_ids, point_ids, vinted_ids = defaultdict(list), defaultdict(list), []
+
+        for entry, status in zip(data_loader, api_response):
+            if not status.is_available:
+                item_ids[entry.category_type].append(entry.id)
+                point_ids[entry.category_type].append(entry.point_id)
+                vinted_ids.append(entry.vinted_id)
+
+        success = self._update(item_ids, vinted_ids, point_ids)
+        n_sold = len(vinted_ids)
+
+        return n_sold, success
 
     def _update(
         self,

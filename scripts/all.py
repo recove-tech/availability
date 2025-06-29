@@ -9,7 +9,7 @@ import src
 
 
 NUM_ITEMS = 100000
-RUN_EVERY = 500
+RUN_EVERY = 10
 IS_WOMEN_ALPHA = 1.0
 SORT_BY_DATE_ALPHA = 0.2
 SECRETS_PATH = "../secrets.json"
@@ -18,20 +18,26 @@ SECRETS_PATH = "../secrets.json"
 def init_runner() -> src.runner.Runner:
     secrets = src.utils.load_json(SECRETS_PATH)
 
-    bq_client, pinecone_index, apify_client, _ = src.config.init_clients(
+    proxy_config = src.models.ProxyConfig(
+        password=secrets.get("APIFY_PROXY_PASSWORD"),
+    )
+
+    checker = src.checker.AsyncAvailabilityChecker(
+        proxy_config=proxy_config,
+    )
+
+    bq_client, pinecone_index, _ = src.config.init_clients(
         secrets=secrets,
     )
 
     config = src.config.init_config(
         bq_client=bq_client,
         pinecone_index=pinecone_index,
-        apify_client=apify_client,
-        apify_actor_id=secrets.get("APIFY_ACTOR_ID"),
         is_women_alpha=IS_WOMEN_ALPHA,
         sort_by_date_alpha=SORT_BY_DATE_ALPHA,
     )
 
-    return src.runner.Runner(config=config)
+    return src.runner.Runner(config=config, checker=checker)
 
 
 def load_from_bigquery(
@@ -50,13 +56,11 @@ def load_from_bigquery(
     )
 
 
-def main():
+async def main():
     runner = init_runner()
     print(f"Config: {runner.config}")
 
     iterator = load_from_bigquery(runner)
-
-    status_codes = []
     n, n_sold, n_success = 0, 0, 0
     loader = src.models.PineconeDataLoader()
 
@@ -65,17 +69,24 @@ def main():
         loader.add(entry)
 
         if loader.total_rows % RUN_EVERY == 0:
-            n_sold_batch, success, status_codes_batch = runner.run(loader)
+            try:
+                n_sold_batch, success = await runner.run_async(loader)
+            except Exception as e:
+                n_sold_batch, success = 0, False
 
-            status_codes.extend(status_codes_batch)
             n_sold += n_sold_batch
             n_success += int(success)
             n += 1
 
-            print(f"Batch #{n} | Sold: {n_sold} | Success rate: {n_success / n:.2f}")
-
-            src.utils.display_status_code_stats(status_codes)
+            print(
+                f"Batch #{n} | "
+                f"Success: {success} | "
+                f"Sold: {n_sold} | "
+                f"Success rate: {n_success / n:.2f}"
+            )
 
 
 if __name__ == "__main__":
-    main()
+    import asyncio
+
+    asyncio.run(main())

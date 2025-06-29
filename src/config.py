@@ -6,8 +6,6 @@ from google.cloud import bigquery
 from pinecone import Pinecone
 from supabase import Client as SupabaseClient
 
-from apify_client import ApifyClient
-
 from .models import Config
 from .bigquery import init_bigquery_client
 from .supabase import init_supabase_client
@@ -16,13 +14,12 @@ from .enums import PINECONE_INDEX_NAME
 
 def init_clients(
     secrets: Dict, with_supabase: bool = False
-) -> Tuple[bigquery.Client, Pinecone.Index, ApifyClient, Optional[SupabaseClient]]:
+) -> Tuple[bigquery.Client, Pinecone.Index, Optional[SupabaseClient]]:
     gcp_credentials = secrets.get("GCP_CREDENTIALS")
     bq_client = init_bigquery_client(credentials_dict=gcp_credentials)
 
     pinecone_client = Pinecone(api_key=secrets.get("PINECONE_API_KEY"))
     pinecone_index = pinecone_client.Index(PINECONE_INDEX_NAME)
-    apify_client = ApifyClient(secrets.get("APIFY_API_TOKEN"))
 
     if with_supabase:
         supabase_client = init_supabase_client(
@@ -32,14 +29,12 @@ def init_clients(
     else:
         supabase_client = None
 
-    return bq_client, pinecone_index, apify_client, supabase_client
+    return bq_client, pinecone_index, supabase_client
 
 
 def init_config(
     bq_client: bigquery.Client,
     pinecone_index: Pinecone.Index,
-    apify_client: ApifyClient,
-    apify_actor_id: str,
     supabase_client: Optional[SupabaseClient] = None,
     sort_by_date_alpha: float = 0.0,
     is_women_alpha: float = 0.0,
@@ -62,8 +57,6 @@ def init_config(
         bq_client=bq_client,
         supabase_client=supabase_client,
         pinecone_index=pinecone_index,
-        apify_client=apify_client,
-        apify_actor_id=apify_actor_id,
         sort_by_date=sort_by_date,
         from_interactions=from_interactions,
         from_saved=from_saved,

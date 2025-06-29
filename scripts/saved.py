@@ -13,17 +13,25 @@ SECRETS_PATH = "../secrets.json"
 
 
 def init_runner() -> src.runner.Runner:
+    secrets = src.utils.load_json(SECRETS_PATH)
+
+    proxy_config = src.models.ProxyConfig(
+        password=secrets.get("APIFY_PROXY_PASSWORD"),
+    )
+
+    checker = src.checker.AsyncAvailabilityChecker(
+        proxy_config=proxy_config,
+    )
+
     config = src.config.init_config(
         bq_client=bq_client,
         supabase_client=supabase_client,
         pinecone_index=pinecone_index,
-        apify_client=apify_client,
-        apify_actor_id=secrets.get("APIFY_ACTOR_ID"),
         from_saved=True,
         saved_ascending_alpha=ASCENDING_ALPHA,
     )
 
-    return src.runner.Runner(config=config)
+    return src.runner.Runner(config=config, checker=checker)
 
 
 def get_loader(runner: src.runner.Runner) -> src.models.PineconeDataLoader:
@@ -46,14 +54,13 @@ def get_loader(runner: src.runner.Runner) -> src.models.PineconeDataLoader:
     return src.models.PineconeDataLoader(entries)
 
 
-if __name__ == "__main__":
+async def main():
     secrets = src.utils.load_json(SECRETS_PATH)
-    global bq_client, pinecone_index, apify_client, supabase_client
+    global bq_client, pinecone_index, supabase_client
 
     (
         bq_client,
         pinecone_index,
-        apify_client,
         supabase_client,
     ) = src.config.init_clients(
         secrets=secrets,
@@ -72,11 +79,15 @@ if __name__ == "__main__":
         if len(loader.entries) == 0:
             raise Exception("No entries found")
 
-        n_sold_batch, success, status_codes_batch = runner.run(loader)
+        try:
+            n_sold_batch, success = await runner.run_async(loader)
+        except Exception as e:
+            n_sold_batch, success = 0, False
 
         n_sold += n_sold_batch
         n_success += int(success)
         n += 1
+
         runner.config.set_index(index + 1)
 
         src.bigquery.update_job_index(
@@ -85,4 +96,15 @@ if __name__ == "__main__":
             index=runner.config.index,
         )
 
-        print(f"Batch #{n} | Sold: {n_sold} | Success rate: {n_success / n:.2f}")
+        print(
+            f"Batch #{n} | "
+            f"Success: {success} | "
+            f"Sold: {n_sold} | "
+            f"Success rate: {n_success / n:.2f}"
+        )
+
+
+if __name__ == "__main__":
+    import asyncio
+
+    asyncio.run(main())
