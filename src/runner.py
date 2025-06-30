@@ -1,7 +1,7 @@
 from typing import List, Tuple, Optional, Dict
 from collections import defaultdict
 from datetime import datetime
-import asyncio
+import asyncio, random
 
 from google.cloud import bigquery
 
@@ -23,49 +23,60 @@ class Runner:
     def run(
         self,
         data_loader: PineconeDataLoader,
-    ) -> Tuple[int, bool]:
+    ) -> Tuple[int, bool, float]:
         vinted_ids = data_loader.vinted_ids
         api_response = self.checker.run(vinted_ids)
 
         if not api_response:
             return 0, False, []
 
+        n, n_success = 0, 0
         item_ids, point_ids, vinted_ids = defaultdict(list), defaultdict(list), []
 
         for entry, status in zip(data_loader, api_response):
+            n += 1
+            n_success += int(status.ok)
+
             if not status.is_available:
                 item_ids[entry.category_type].append(entry.id)
                 point_ids[entry.category_type].append(entry.point_id)
                 vinted_ids.append(entry.vinted_id)
 
-        success = self._update(item_ids, vinted_ids, point_ids)
+        updated = self._update(item_ids, vinted_ids, point_ids)
         n_sold = len(vinted_ids)
+        success_rate = n_success / n if n > 0 else 0
 
-        return n_sold, success
+        return n_sold, updated, success_rate
 
     async def run_async(
         self,
         data_loader: PineconeDataLoader,
-    ) -> Tuple[int, bool]:
+        use_proxy: bool = False,
+    ) -> Tuple[int, bool, float]:
         vinted_ids = data_loader.vinted_ids
-
-        api_response = await self.checker.run(vinted_ids)
+        api_response = await self.checker.run(vinted_ids, use_proxy)
 
         if not api_response:
-            return 0, False, []
+            return 0, False, 0.0
 
+        n, n_success = 0, 0
         item_ids, point_ids, vinted_ids = defaultdict(list), defaultdict(list), []
 
         for entry, status in zip(data_loader, api_response):
-            if not status.is_available:
+            n += 1
+            n_success += int(status.ok)
+
+            if status.ok and not status.is_available:
                 item_ids[entry.category_type].append(entry.id)
                 point_ids[entry.category_type].append(entry.point_id)
                 vinted_ids.append(entry.vinted_id)
 
-        success = self._update(item_ids, vinted_ids, point_ids)
+        updated = self._update(item_ids, vinted_ids, point_ids)
         n_sold = len(vinted_ids)
+        success_rate = n_success / n if n > 0 else 0
+        print(success_rate)
 
-        return n_sold, success
+        return n_sold, updated, success_rate
 
     def _update(
         self,

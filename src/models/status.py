@@ -5,8 +5,8 @@ from dataclasses import dataclass
 @dataclass
 class VintedItemStatus:
     item_id: str
-    is_available: bool
     status_code: int
+    is_available: bool = True
     error: Optional[str] = None
 
     def to_dict(self) -> Dict:
@@ -19,4 +19,4 @@ class VintedItemStatus:
 
     @property
     def ok(self) -> bool:
-        return self.status_code == 200
+        return self.status_code in (200, 404)

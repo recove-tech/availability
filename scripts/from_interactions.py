@@ -10,6 +10,7 @@ import src
 
 NUM_ITEMS = 1000
 NUM_NEIGHBORS = 50
+USE_PROXY_ALPHA = 0.8
 SECRETS_PATH = "../secrets.json"
 
 
@@ -60,7 +61,8 @@ async def main():
     runner = init_runner()
     print(f"Config: {runner.config}")
 
-    n, n_sold, n_success = 0, 0, 0
+    use_proxy = False
+    n, n_sold, success_rate_list = 0, 0, []
     point_ids, namespaces = load_data(runner)
     loop = tqdm.tqdm(iterable=zip(point_ids, namespaces), total=len(point_ids))
 
@@ -76,19 +78,28 @@ async def main():
         )
 
         try:
-            n_sold_batch, success = await runner.run_async(loader)
+            use_proxy = src.utils.use_proxy_func(use_proxy, USE_PROXY_ALPHA)
+
+            n_sold_batch, updated, success_rate = await runner.run_async(
+                loader, use_proxy
+            )
+
         except Exception as e:
-            n_sold_batch, success = 0, False
+            n_sold_batch, updated, success_rate = 0, False, 0
 
         n_sold += n_sold_batch
-        n_success += int(success)
+        success_rate_list.append(success_rate)
+        average_success_rate = sum(success_rate_list) / len(success_rate_list)
         n += 1
 
         print(
             f"Batch #{n} | "
-            f"Success: {success} | "
-            f"Sold: {n_sold} | "
-            f"Success rate: {n_success / n:.2f}"
+            f"Proxy: {use_proxy} | "
+            f"Updated: {updated} | "
+            f"Sold: {n_sold_batch} | "
+            f"Total sold: {n_sold} | "
+            f"Success rate: {success_rate:.2f} | "
+            f"Average success rate: {average_success_rate:.2f}"
         )
 
 

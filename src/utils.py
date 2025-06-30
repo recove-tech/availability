@@ -1,6 +1,6 @@
 from typing import Any, List, Dict
 
-import json
+import json, random
 from collections import Counter
 
 
@@ -18,3 +18,10 @@ def display_status_code_stats(status_codes: List[int]) -> None:
 
     for status, count in status_count.items():
         print(f"{status}: {count}")
+
+
+def use_proxy_func(current_value: bool, alpha: float) -> bool:
+    if current_value is False:
+        return True
+    else:
+        return random.random() < alpha

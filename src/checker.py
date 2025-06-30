@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Optional
 from abc import ABC, abstractmethod
 
 import logging, asyncio, aiohttp
@@ -6,6 +6,7 @@ import requests
 from tqdm import tqdm
 
 from src.models import ProxyConfig, VintedItemStatus
+from src.enums import MAX_RETRIES, INITIAL_SLEEP_TIME, MAX_SLEEP_TIME
 
 
 class BaseAvailabilityChecker(ABC):
@@ -18,13 +19,13 @@ class BaseAvailabilityChecker(ABC):
     BASE_URL = "https://www.vinted.fr"
     BASE_API_URL = "https://www.vinted.fr/api/v2/items/{}/details"
 
-    def __init__(self, proxy_config: ProxyConfig):
+    def __init__(self, proxy_config: Optional[ProxyConfig] = None):
         self.proxy_config = proxy_config
         self.logger = logging.getLogger(__name__)
         self._cookies = None
 
     @abstractmethod
-    def _get_cookies(self) -> Dict:
+    def get_cookies(self) -> Dict:
         pass
 
     @abstractmethod
@@ -37,68 +38,75 @@ class BaseAvailabilityChecker(ABC):
 
 
 class AsyncAvailabilityChecker(BaseAvailabilityChecker):
-    async def run(self, item_ids: List[str]) -> List[VintedItemStatus]:
+    async def run(
+        self, item_ids: List[str], use_proxy: bool = False
+    ) -> List[VintedItemStatus]:
         if not item_ids:
             return []
 
-        if not self._cookies:
-            self._cookies = await self._get_cookies()
-
-        coroutines = [self._run(item_id) for item_id in item_ids]
+        self._cookies = await self.get_cookies()
+        coroutines = [self._run(item_id, use_proxy) for item_id in item_ids]
         results = await asyncio.gather(*coroutines)
 
         return results
 
-    async def _get_cookies(self) -> Dict:
+    async def get_cookies(
+        self, retry_count: int = 0, sleep_time: int = INITIAL_SLEEP_TIME
+    ) -> Dict:
+        if retry_count >= MAX_RETRIES:
+            raise Exception(f"Failed to get cookies after {MAX_RETRIES} retries")
+
         headers = {**self.BASE_HEADERS, "Referer": self.BASE_URL}
+
+        kwargs = {
+            "headers": headers,
+            "allow_redirects": True,
+            "timeout": 30,
+            "proxy": self.proxy_config.url if self.proxy_config else None,
+        }
 
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.get(
-                    self.BASE_URL,
-                    headers=headers,
-                    proxy=self.proxy_config.url,
-                    allow_redirects=True,
-                    timeout=30,
-                ) as response:
+                async with session.get(self.BASE_URL, **kwargs) as response:
                     if not response.ok:
-                        raise Exception(f"Failed to get cookies: {response.status}")
+                        await asyncio.sleep(min(sleep_time, MAX_SLEEP_TIME))
+
+                        return await self.get_cookies(retry_count + 1, sleep_time * 2)
 
                     return {
                         cookie.key: cookie.value for cookie in response.cookies.values()
                     }
 
         except Exception as e:
-            self.logger.error(f"Error getting cookies: {e}")
-            raise
+            self.logger.error(
+                f"Error getting cookies (attempt {retry_count + 1}/{MAX_RETRIES}): {e}"
+            )
+            await asyncio.sleep(min(sleep_time, MAX_SLEEP_TIME))
+            return await self.get_cookies(retry_count + 1, sleep_time * 2)
 
-    async def _run(self, item_id: str) -> VintedItemStatus:
+    async def _run(self, item_id: str, use_proxy: bool = False) -> VintedItemStatus:
         headers = {**self.BASE_HEADERS, "Referer": self.BASE_URL}
         url = self.BASE_API_URL.format(item_id)
 
+        kwargs = {
+            "headers": headers,
+            "cookies": self._cookies,
+            "allow_redirects": True,
+            "timeout": 30,
+        }
+
+        if use_proxy and self.proxy_config:
+            kwargs["proxy"] = self.proxy_config.url
+
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.get(
-                    url,
-                    headers=headers,
-                    cookies=self._cookies,
-                    proxy=self.proxy_config.url,
-                    allow_redirects=True,
-                    timeout=30,
-                ) as response:
+                async with session.get(url, **kwargs) as response:
                     status_code = response.status
-
-                    if not response.ok:
-                        return VintedItemStatus(
-                            item_id=item_id,
-                            is_available=False,
-                            status_code=status_code,
-                            error=f"HTTP {status_code}",
-                        )
 
                     try:
                         data = await response.json()
                         item_info = data.get("item", {})
+
                         is_available = bool(
                             item_info and not item_info.get("is_closed", False)
                         )
@@ -112,17 +120,15 @@ class AsyncAvailabilityChecker(BaseAvailabilityChecker):
                     except Exception as e:
                         return VintedItemStatus(
                             item_id=item_id,
-                            is_available=False,
                             status_code=status_code,
                             error=f"Failed to parse response: {str(e)}",
                         )
 
-        except asyncio.TimeoutError:
+        except Exception as e:
             return VintedItemStatus(
                 item_id=item_id,
-                is_available=False,
-                status_code=408,
-                error="Request timeout",
+                status_code=505,
+                error=str(e),
             )
 
 
@@ -132,7 +138,7 @@ class AvailabilityChecker(BaseAvailabilityChecker):
             return []
 
         if not self._cookies:
-            self._cookies = self._get_cookies()
+            self._cookies = self.get_cookies()
 
         n, n_success = 0, 0
         results = []
@@ -148,17 +154,23 @@ class AvailabilityChecker(BaseAvailabilityChecker):
 
         return results
 
-    def _get_cookies(self) -> Dict:
+    def get_cookies(self) -> Dict:
         headers = {**self.BASE_HEADERS, "Referer": self.BASE_URL}
 
+        kwargs = {
+            "headers": headers,
+            "allow_redirects": True,
+            "timeout": 30,
+        }
+
+        if self.proxy_config:
+            kwargs["proxies"] = {
+                "http": self.proxy_config.url,
+                "https": self.proxy_config.url,
+            }
+
         try:
-            response = requests.get(
-                self.BASE_URL,
-                headers=headers,
-                proxies={"http": self.proxy_config.url, "https": self.proxy_config.url},
-                allow_redirects=True,
-                timeout=30,
-            )
+            response = requests.get(self.BASE_URL, **kwargs)
 
             if not response.ok:
                 raise Exception(f"Failed to get cookies: {response.status_code}")
@@ -173,15 +185,22 @@ class AvailabilityChecker(BaseAvailabilityChecker):
         headers = {**self.BASE_HEADERS, "Referer": self.BASE_URL}
         url = self.BASE_API_URL.format(item_id)
 
+        kwargs = {
+            "headers": headers,
+            "cookies": self._cookies,
+            "allow_redirects": True,
+            "timeout": 30,
+        }
+
+        if self.proxy_config:
+            kwargs["proxies"] = {
+                "http": self.proxy_config.url,
+                "https": self.proxy_config.url,
+            }
+
         try:
-            response = requests.get(
-                url,
-                headers=headers,
-                cookies=self._cookies,
-                proxies={"http": self.proxy_config.url, "https": self.proxy_config.url},
-                allow_redirects=True,
-                timeout=30,
-            )
+            response = requests.get(url, **kwargs)
+
             status_code = response.status_code
 
             if not response.ok:
