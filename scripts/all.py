@@ -12,6 +12,7 @@ NUM_ITEMS = 100000
 RUN_EVERY = 10
 IS_WOMEN_ALPHA = 1.0
 SORT_BY_DATE_ALPHA = 0.2
+USE_PROXY_ALPHA = 1.0
 SECRETS_PATH = "../secrets.json"
 
 
@@ -61,28 +62,37 @@ async def main():
     print(f"Config: {runner.config}")
 
     iterator = load_from_bigquery(runner)
-    n, n_sold, n_success = 0, 0, 0
     loader = src.models.PineconeDataLoader()
+
+    use_proxy = False
+    n, n_sold, success_rate_list = 0, 0, []
 
     for row in iterator:
         entry = src.models.PineconeEntry.from_dict(dict(row))
         loader.add(entry)
 
         if loader.total_rows % RUN_EVERY == 0:
-            try:
-                n_sold_batch, success = await runner.run_async(loader)
-            except Exception as e:
-                n_sold_batch, success = 0, False
-
-            n_sold += n_sold_batch
-            n_success += int(success)
             n += 1
+            use_proxy = src.utils.use_proxy_func(use_proxy, USE_PROXY_ALPHA)
+
+            n_sold_batch, updated, success_rate = await runner.run_async(
+                loader, use_proxy
+            )
+
+            success_rate_list.append(success_rate)
+            average_success_rate = sum(success_rate_list) / len(success_rate_list)
+            n_sold += n_sold_batch
+
+            loader = src.models.PineconeDataLoader()
 
             print(
                 f"Batch #{n} | "
-                f"Success: {success} | "
-                f"Sold: {n_sold} | "
-                f"Success rate: {n_success / n:.2f}"
+                f"Proxy: {use_proxy} | "
+                f"Updated: {updated} | "
+                f"Sold: {n_sold_batch} | "
+                f"Total sold: {n_sold} | "
+                f"Success rate: {success_rate:.2f} | "
+                f"Average success rate: {average_success_rate:.2f}"
             )
 
 
