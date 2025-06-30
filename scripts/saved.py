@@ -8,7 +8,7 @@ import src
 NUM_ITEMS = 1000
 JOB_ID = "saved"
 ASCENDING_ALPHA = 0.5
-USE_PROXY_ALPHA = 0.8
+USE_PROXY_ALPHA = 1.0
 SECRETS_PATH = "../secrets.json"
 
 

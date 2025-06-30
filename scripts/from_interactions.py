@@ -2,15 +2,14 @@ import sys
 
 sys.path.append("../")
 
-from typing import List
-import tqdm
+from typing import List, Tuple
 
 import src
 
 
 NUM_ITEMS = 1000
 NUM_NEIGHBORS = 50
-USE_PROXY_ALPHA = 0.8
+USE_PROXY_ALPHA = 1.0
 SECRETS_PATH = "../secrets.json"
 
 
@@ -38,7 +37,7 @@ def init_runner() -> src.runner.Runner:
     return src.runner.Runner(config=config, checker=checker)
 
 
-def load_data(runner: src.runner.Runner) -> List[str]:
+def load_data(runner: src.runner.Runner) -> Tuple[List[str], List[str]]:
     query = src.bigquery.query_interaction_items(
         n=NUM_ITEMS,
         shuffle=True,
@@ -64,9 +63,8 @@ async def main():
     use_proxy = False
     n, n_sold, success_rate_list = 0, 0, []
     point_ids, namespaces = load_data(runner)
-    loop = tqdm.tqdm(iterable=zip(point_ids, namespaces), total=len(point_ids))
 
-    for point_id, namespace in loop:
+    for point_id, namespace in zip(point_ids, namespaces):
         if namespace is None:
             continue
 
