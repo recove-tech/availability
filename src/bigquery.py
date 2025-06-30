@@ -1,5 +1,6 @@
 from typing import List, Dict, Union, Optional
 
+from datetime import datetime
 from google.oauth2 import service_account
 from google.cloud import bigquery
 from .enums import *
@@ -17,6 +18,27 @@ def init_bigquery_client(credentials_dict: Dict) -> bigquery.Client:
     return bigquery.Client(
         credentials=credentials, project=credentials_dict["project_id"]
     )
+
+
+def insert_rows_json(client: bigquery.Client, vinted_ids: List[str]) -> bool:
+    current_time = datetime.now().isoformat()
+
+    try:
+        rows = [
+            {"vinted_id": vinted_id, "updated_at": current_time}
+            for vinted_id in vinted_ids
+        ]
+
+        errors = client.insert_rows_json(
+            table=f"{VINTED_DATASET_ID}.{SOLD_TABLE_ID}",
+            json_rows=rows,
+        )
+
+        return not errors
+
+    except Exception as e:
+        print(e)
+        return False
 
 
 def run_query(
@@ -176,7 +198,7 @@ def query_interaction_items(
     return query
 
 
-def query_pinecone_points(item_ids: List[int]) -> str:
+def query_pinecone_points(item_ids: List[str]) -> str:
     item_ids_str = ", ".join([f"'{item_id}'" for item_id in item_ids])
 
     return f"""
