@@ -1,0 +1,10 @@
+[Unit]
+Description=Run all.service daily
+After=network.target
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+
+[Install]
+WantedBy=timers.target 

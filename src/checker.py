@@ -150,7 +150,7 @@ class AvailabilityChecker(BaseAvailabilityChecker):
 
             n += 1
             n_success += int(response.ok)
-            loop.set_description(f"Success: {n_success/n:.2f}")
+            loop.set_description(f"Success: {n_success / n:.2f}")
 
         return results
 

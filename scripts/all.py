@@ -2,9 +2,9 @@ import sys
 
 sys.path.append("../")
 
-from typing import List, Dict
+import logging
+from datetime import datetime
 from google.cloud import bigquery
-
 import src
 
 
@@ -13,7 +13,21 @@ RUN_EVERY = 10
 IS_WOMEN_ALPHA = 1.0
 SORT_BY_DATE_ALPHA = 0.2
 USE_PROXY_ALPHA = 1.0
+
 SECRETS_PATH = "../secrets.json"
+LOG_DIR = "../logs"
+
+
+def setup_logging():
+    today = datetime.now().strftime("%Y%m%d")
+    log_file = f"{LOG_DIR}/all_{today}.log"
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+        handlers=[logging.FileHandler(log_file), logging.StreamHandler()],
+    )
 
 
 def init_runner() -> src.runner.Runner:
@@ -58,8 +72,10 @@ def load_from_bigquery(
 
 
 async def main():
+    setup_logging()
+
     runner = init_runner()
-    print(f"Config: {runner.config}")
+    logging.info(f"Config: {runner.config}")
 
     iterator = load_from_bigquery(runner)
     loader = src.models.PineconeDataLoader()
@@ -85,7 +101,7 @@ async def main():
 
             loader = src.models.PineconeDataLoader()
 
-            print(
+            logging.info(
                 f"Batch #{n} | "
                 f"Proxy: {use_proxy} | "
                 f"Updated: {updated} | "

@@ -2,8 +2,9 @@ import sys
 
 sys.path.append("../")
 
+import logging
+from datetime import datetime
 from typing import List, Tuple
-
 import src
 
 
@@ -11,6 +12,19 @@ NUM_ITEMS = 1000
 NUM_NEIGHBORS = 50
 USE_PROXY_ALPHA = 1.0
 SECRETS_PATH = "../secrets.json"
+LOG_DIR = "../logs"
+
+
+def setup_logging():
+    today = datetime.now().strftime("%Y%m%d")
+    log_file = f"{LOG_DIR}/from_interactions_{today}.log"
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+        handlers=[logging.FileHandler(log_file), logging.StreamHandler()],
+    )
 
 
 def init_runner() -> src.runner.Runner:
@@ -57,8 +71,10 @@ def load_data(runner: src.runner.Runner) -> Tuple[List[str], List[str]]:
 
 
 async def main():
+    setup_logging()
+
     runner = init_runner()
-    print(f"Config: {runner.config}")
+    logging.info(f"Config: {runner.config}")
 
     use_proxy = False
     n, n_sold, success_rate_list = 0, 0, []
@@ -84,13 +100,14 @@ async def main():
 
         except Exception as e:
             n_sold_batch, updated, success_rate = 0, False, 0
+            logging.error(f"Error in batch: {str(e)}")
 
         n_sold += n_sold_batch
         success_rate_list.append(success_rate)
         average_success_rate = sum(success_rate_list) / len(success_rate_list)
         n += 1
 
-        print(
+        logging.info(
             f"Batch #{n} | "
             f"Proxy: {use_proxy} | "
             f"Updated: {updated} | "

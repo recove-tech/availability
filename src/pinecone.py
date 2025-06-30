@@ -132,7 +132,7 @@ def delete_points_from_bigquery_iterator(
             if verbose:
                 iterator.set_description(
                     f"Batch: {n} | "
-                    f"Processed: {ix+1} | "
+                    f"Processed: {ix + 1} | "
                     f"Success: {n_success} | "
                     f"Success rate: {success_rate:.2f}"
                 )

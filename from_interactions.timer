@@ -1,0 +1,10 @@
+[Unit]
+Description=Run from_interactions.service daily
+After=network.target
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+
+[Install]
+WantedBy=timers.target 
