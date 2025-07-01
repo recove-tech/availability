@@ -33,8 +33,11 @@ def setup_logging():
 def init_runner() -> src.runner.Runner:
     secrets = src.utils.load_json(SECRETS_PATH)
 
+    # replace with random.choice
+    apify_proxy_password = secrets.get("APIFY_PROXY_PASSWORD")[1]
+
     proxy_config = src.models.ProxyConfig(
-        password=secrets.get("APIFY_PROXY_PASSWORD"),
+        password=apify_proxy_password,
     )
 
     checker = src.checker.AsyncAvailabilityChecker(
