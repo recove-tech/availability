@@ -5,18 +5,21 @@ sys.path.append("../")
 import src
 
 
-NUM_ITEMS = 1000
-JOB_ID = "saved"
-ASCENDING_ALPHA = 0.5
-USE_PROXY_ALPHA = 1.0
-SECRETS_PATH = "../secrets.json"
+config = src.utils.load_yaml("config.yaml")
+common_config = config["COMMON"]
+script_config = config["SAVED"]
+
+NUM_ITEMS = script_config["NUM_ITEMS"]
+JOB_ID = script_config["JOB_ID"]
+ASCENDING_ALPHA = script_config["ASCENDING_ALPHA"]
+USE_PROXY_ALPHA = common_config["USE_PROXY_ALPHA"]
+SECRETS_PATH = common_config["SECRETS_PATH"]
 
 
 def init_runner() -> src.runner.Runner:
     secrets = src.utils.load_json(SECRETS_PATH)
 
-    # replace with random.choice
-    apify_proxy_password = secrets.get("APIFY_PROXY_PASSWORD")[1]
+    apify_proxy_password = secrets.get("APIFY_PROXY_PASSWORD")[-1]
 
     proxy_config = src.models.ProxyConfig(
         password=apify_proxy_password,

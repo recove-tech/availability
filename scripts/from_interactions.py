@@ -8,11 +8,15 @@ from typing import List, Tuple
 import src
 
 
-NUM_ITEMS = 1000
-NUM_NEIGHBORS = 50
-USE_PROXY_ALPHA = 1.0
-SECRETS_PATH = "../secrets.json"
-LOG_DIR = "../logs"
+config = src.utils.load_yaml("config.yaml")
+common_config = config["COMMON"]
+script_config = config["FROM_INTERACTIONS"]
+
+NUM_ITEMS = script_config["NUM_ITEMS"]
+NUM_NEIGHBORS = script_config["NUM_NEIGHBORS"]
+USE_PROXY_ALPHA = common_config["USE_PROXY_ALPHA"]
+SECRETS_PATH = common_config["SECRETS_PATH"]
+LOG_DIR = common_config["LOG_DIR"]
 
 
 def setup_logging():
@@ -30,8 +34,7 @@ def setup_logging():
 def init_runner() -> src.runner.Runner:
     secrets = src.utils.load_json(SECRETS_PATH)
 
-    # replace with random.choice
-    apify_proxy_password = secrets.get("APIFY_PROXY_PASSWORD")[1]
+    apify_proxy_password = secrets.get("APIFY_PROXY_PASSWORD")[-1]
 
     proxy_config = src.models.ProxyConfig(
         password=apify_proxy_password,

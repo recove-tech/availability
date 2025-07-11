@@ -74,7 +74,6 @@ class Runner:
         updated = self._update(item_ids, vinted_ids, point_ids)
         n_sold = len(vinted_ids)
         success_rate = n_success / n if n > 0 else 0
-        print(success_rate)
 
         return n_sold, updated, success_rate
 

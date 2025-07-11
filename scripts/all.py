@@ -8,14 +8,18 @@ from google.cloud import bigquery
 import src
 
 
-NUM_ITEMS = 100000
-RUN_EVERY = 50
-IS_WOMEN_ALPHA = 1.0
-SORT_BY_DATE_ALPHA = 0.2
-USE_PROXY_ALPHA = 1.0
+config = src.utils.load_yaml("config.yaml")
+common_config = config["COMMON"]
+script_config = config["ALL"]
 
-SECRETS_PATH = "../secrets.json"
-LOG_DIR = "../logs"
+NUM_ITEMS = script_config["NUM_ITEMS"]
+RUN_EVERY = script_config["RUN_EVERY"]
+IS_WOMEN_ALPHA = script_config["IS_WOMEN_ALPHA"]
+SORT_BY_DATE_ALPHA = script_config["SORT_BY_DATE_ALPHA"]
+USE_PROXY_ALPHA = common_config["USE_PROXY_ALPHA"]
+
+SECRETS_PATH = common_config["SECRETS_PATH"]
+LOG_DIR = common_config["LOG_DIR"]
 
 
 def setup_logging():
@@ -33,8 +37,7 @@ def setup_logging():
 def init_runner() -> src.runner.Runner:
     secrets = src.utils.load_json(SECRETS_PATH)
 
-    # replace with random.choice
-    apify_proxy_password = secrets.get("APIFY_PROXY_PASSWORD")[1]
+    apify_proxy_password = secrets.get("APIFY_PROXY_PASSWORD")[-1]
 
     proxy_config = src.models.ProxyConfig(
         password=apify_proxy_password,

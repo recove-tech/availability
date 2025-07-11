@@ -1,6 +1,6 @@
 from typing import Any, List, Dict
 
-import json, random
+import json, random, yaml
 from collections import Counter
 
 
@@ -8,6 +8,15 @@ def load_json(filepath: str) -> Any:
     try:
         with open(filepath, "r", encoding="utf-8") as f:
             return json.load(f)
+    except Exception as e:
+        print(e)
+        return None
+
+
+def load_yaml(filepath: str) -> Any:
+    try:
+        with open(filepath, "r", encoding="utf-8") as f:
+            return yaml.safe_load(f)
     except Exception as e:
         print(e)
         return None

@@ -62,7 +62,7 @@ class AsyncAvailabilityChecker(BaseAvailabilityChecker):
             "headers": headers,
             "allow_redirects": True,
             "timeout": 30,
-            "proxy": self.proxy_config.url if self.proxy_config else None,
+            "proxy": self.proxy_config.url_residential if self.proxy_config else None,
         }
 
         try:
@@ -96,7 +96,7 @@ class AsyncAvailabilityChecker(BaseAvailabilityChecker):
         }
 
         if use_proxy and self.proxy_config:
-            kwargs["proxy"] = self.proxy_config.url
+            kwargs["proxy"] = self.proxy_config.url_residential
 
         try:
             async with aiohttp.ClientSession() as session:
