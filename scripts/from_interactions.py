@@ -9,11 +9,11 @@ from typing import List, Tuple
 import src
 
 
-config = src.utils.load_yaml("config.yaml")
+config_dict = src.utils.load_yaml("config.yaml")
 
 script_config = src.models.ScriptConfig.from_config_dict(
-    common_config=config["COMMON"],
-    script_config=config["FROM_INTERACTIONS"],
+    common_config=config_dict["COMMON"],
+    script_config=config_dict["FROM_INTERACTIONS"],
 )
 
 
@@ -95,6 +95,7 @@ async def main():
             namespace=namespace,
             point_id=point_id,
             n=script_config.num_neighbors,
+            days_lookback=script_config.days_lookback,
         )
 
         try:
