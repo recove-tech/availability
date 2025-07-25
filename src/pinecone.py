@@ -1,7 +1,8 @@
-from typing import List, Tuple
+from typing import List, Tuple, Dict, Optional
 
 import time
 from tqdm import tqdm
+from datetime import datetime, timedelta
 from google.cloud import bigquery
 
 from pinecone.data.index import Index, ScoredVector
@@ -141,17 +142,26 @@ def delete_points_from_bigquery_iterator(
 
 
 def get_neighbors(
-    index: Index, namespace: str, point_id: str, n: int
+    index: Index,
+    namespace: str,
+    point_id: str,
+    n: int,
+    days_lookback: Optional[int] = None,
 ) -> PineconeDataLoader:
     loader = PineconeDataLoader()
 
-    results = index.query(
+    kwargs = dict(
         id=point_id,
         top_k=n,
         include_values=False,
         include_metadata=True,
         namespace=namespace,
     )
+
+    if days_lookback:
+        kwargs["filter"] = create_filter(days_lookback)
+
+    results = index.query(**kwargs)
 
     for vector in results.matches:
         try:
@@ -161,3 +171,14 @@ def get_neighbors(
             pass
 
     return loader
+
+
+def create_filter(days_lookback: int) -> Dict:
+    now = datetime.now()
+    start_date = int((now - timedelta(days=days_lookback)).timestamp())
+
+    return {
+        "unix_created_at": {
+            "gte": start_date,
+        }
+    }
