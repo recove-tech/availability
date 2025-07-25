@@ -14,6 +14,7 @@ class ScriptConfig:
     sort_by_date_alpha: Optional[bool] = None
     run_every: Optional[int] = None
     num_neighbors: Optional[int] = None
+    days_lookback: Optional[int] = None
 
     @classmethod
     def from_config_dict(
@@ -29,4 +30,5 @@ class ScriptConfig:
             sort_by_date_alpha=script_config.get("SORT_BY_DATE_ALPHA"),
             run_every=script_config.get("RUN_EVERY"),
             num_neighbors=script_config.get("NUM_NEIGHBORS"),
+            days_lookback=script_config.get("DAYS_LOOKBACK"),
         )
