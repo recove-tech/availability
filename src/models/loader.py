@@ -12,6 +12,7 @@ class PineconeEntry:
     vinted_id: str
     url: str
     category_type: Optional[str] = None
+    created_at: Optional[str] = None
 
     @classmethod
     def from_vector(cls, vector: ScoredVector) -> "PineconeEntry":
@@ -23,6 +24,7 @@ class PineconeEntry:
             vinted_id=vector.metadata["vinted_id"],
             url=vector.metadata["url"],
             category_type=metadata.get("category_type"),
+            created_at=metadata.get("created_at"),
         )
 
     @classmethod
@@ -33,6 +35,7 @@ class PineconeEntry:
             vinted_id=data["vinted_id"],
             url=data["url"],
             category_type=data.get("category_type"),
+            created_at=data.get("created_at"),
         )
 
 
