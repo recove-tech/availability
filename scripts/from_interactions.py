@@ -5,25 +5,21 @@ sys.path.append("../")
 import logging
 from datetime import datetime
 from typing import List, Tuple
+
 import src
 
 
 config = src.utils.load_yaml("config.yaml")
-common_config = config["COMMON"]
-script_config = config["FROM_INTERACTIONS"]
 
-USE_PROXY_ALPHA = common_config["USE_PROXY_ALPHA"]
-PROXY_PASSWORD_POSITION = common_config["PROXY_PASSWORD_POSITION"]
-SECRETS_PATH = common_config["SECRETS_PATH"]
-LOG_DIR = common_config["LOG_DIR"]
-
-NUM_ITEMS = script_config["NUM_ITEMS"]
-NUM_NEIGHBORS = script_config["NUM_NEIGHBORS"]
+script_config = src.models.ScriptConfig.from_config_dict(
+    common_config=config["COMMON"],
+    script_config=config["FROM_INTERACTIONS"],
+)
 
 
 def setup_logging():
     today = datetime.now().strftime("%Y%m%d")
-    log_file = f"{LOG_DIR}/from_interactions_{today}.log"
+    log_file = f"{script_config.log_dir}/from_interactions_{today}.log"
 
     logging.basicConfig(
         level=logging.INFO,
@@ -34,9 +30,11 @@ def setup_logging():
 
 
 def init_runner() -> src.runner.Runner:
-    secrets = src.utils.load_json(SECRETS_PATH)
+    secrets = src.utils.load_json(script_config.secrets_path)
 
-    apify_proxy_password = secrets.get("APIFY_PROXY_PASSWORD")[PROXY_PASSWORD_POSITION]
+    apify_proxy_password = secrets.get("APIFY_PROXY_PASSWORD")[
+        script_config.proxy_password_position
+    ]
 
     proxy_config = src.models.ProxyConfig(
         password=apify_proxy_password,
@@ -61,7 +59,7 @@ def init_runner() -> src.runner.Runner:
 
 def load_data(runner: src.runner.Runner) -> Tuple[List[str], List[str]]:
     query = src.bigquery.query_interaction_items(
-        n=NUM_ITEMS,
+        n=script_config.num_items,
         shuffle=True,
     )
 
@@ -96,11 +94,13 @@ async def main():
             index=runner.config.pinecone_index,
             namespace=namespace,
             point_id=point_id,
-            n=NUM_NEIGHBORS,
+            n=script_config.num_neighbors,
         )
 
         try:
-            use_proxy = src.utils.use_proxy_func(use_proxy, USE_PROXY_ALPHA)
+            use_proxy = src.utils.use_proxy_func(
+                use_proxy, script_config.use_proxy_alpha
+            )
 
             n_sold_batch, updated, success_rate = await runner.run_async(
                 loader, use_proxy

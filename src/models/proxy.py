@@ -17,7 +17,5 @@ class ProxyConfig:
 
     @property
     def url_residential(self) -> str:
-        username = (
-            f"groups-RESIDENTIAL,country-{self.country_code}:{self.password}"
-        )
+        username = f"groups-RESIDENTIAL,country-{self.country_code}:{self.password}"
         return f"http://{username}@{self._hostname}:{self._port}"

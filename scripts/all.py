@@ -5,27 +5,21 @@ sys.path.append("../")
 import logging
 from datetime import datetime
 from google.cloud import bigquery
+
 import src
 
 
 config = src.utils.load_yaml("config.yaml")
-common_config = config["COMMON"]
-script_config = config["ALL"]
 
-NUM_ITEMS = script_config["NUM_ITEMS"]
-RUN_EVERY = script_config["RUN_EVERY"]
-IS_WOMEN_ALPHA = script_config["IS_WOMEN_ALPHA"]
-SORT_BY_DATE_ALPHA = script_config["SORT_BY_DATE_ALPHA"]
-USE_PROXY_ALPHA = common_config["USE_PROXY_ALPHA"]
-PROXY_PASSWORD_POSITION = common_config["PROXY_PASSWORD_POSITION"]
-
-SECRETS_PATH = common_config["SECRETS_PATH"]
-LOG_DIR = common_config["LOG_DIR"]
+script_config = src.models.ScriptConfig.from_config_dict(
+    common_config=config["COMMON"],
+    script_config=config["ALL"],
+)
 
 
 def setup_logging():
     today = datetime.now().strftime("%Y%m%d")
-    log_file = f"{LOG_DIR}/all_{today}.log"
+    log_file = f"{script_config.log_dir}/all_{today}.log"
 
     logging.basicConfig(
         level=logging.INFO,
@@ -36,9 +30,11 @@ def setup_logging():
 
 
 def init_runner() -> src.runner.Runner:
-    secrets = src.utils.load_json(SECRETS_PATH)
+    secrets = src.utils.load_json(script_config.secrets_path)
 
-    apify_proxy_password = secrets.get("APIFY_PROXY_PASSWORD")[PROXY_PASSWORD_POSITION]
+    apify_proxy_password = secrets.get("APIFY_PROXY_PASSWORD")[
+        script_config.proxy_password_position
+    ]
 
     proxy_config = src.models.ProxyConfig(
         password=apify_proxy_password,
@@ -55,8 +51,8 @@ def init_runner() -> src.runner.Runner:
     config = src.config.init_config(
         bq_client=bq_client,
         pinecone_index=pinecone_index,
-        is_women_alpha=IS_WOMEN_ALPHA,
-        sort_by_date_alpha=SORT_BY_DATE_ALPHA,
+        is_women_alpha=script_config.is_women_alpha,
+        sort_by_date_alpha=script_config.sort_by_date_alpha,
     )
 
     return src.runner.Runner(config=config, checker=checker)
@@ -66,7 +62,7 @@ def load_from_bigquery(
     runner: src.runner.Runner,
 ) -> bigquery.table.RowIterator:
     query_kwargs = {
-        "n": NUM_ITEMS,
+        "n": script_config.num_items,
         "is_women": runner.config.is_women,
         "sort_by_date": runner.config.sort_by_date,
     }
@@ -94,9 +90,11 @@ async def main():
         entry = src.models.PineconeEntry.from_dict(dict(row))
         loader.add(entry)
 
-        if loader.total_rows % RUN_EVERY == 0:
+        if loader.total_rows % script_config.run_every == 0:
             n += 1
-            use_proxy = src.utils.use_proxy_func(use_proxy, USE_PROXY_ALPHA)
+            use_proxy = src.utils.use_proxy_func(
+                use_proxy, script_config.use_proxy_alpha
+            )
 
             n_sold_batch, updated, success_rate = await runner.run_async(
                 loader, use_proxy
