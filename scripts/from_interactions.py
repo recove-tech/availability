@@ -12,11 +12,13 @@ config = src.utils.load_yaml("config.yaml")
 common_config = config["COMMON"]
 script_config = config["FROM_INTERACTIONS"]
 
-NUM_ITEMS = script_config["NUM_ITEMS"]
-NUM_NEIGHBORS = script_config["NUM_NEIGHBORS"]
 USE_PROXY_ALPHA = common_config["USE_PROXY_ALPHA"]
+PROXY_PASSWORD_POSITION = common_config["PROXY_PASSWORD_POSITION"]
 SECRETS_PATH = common_config["SECRETS_PATH"]
 LOG_DIR = common_config["LOG_DIR"]
+
+NUM_ITEMS = script_config["NUM_ITEMS"]
+NUM_NEIGHBORS = script_config["NUM_NEIGHBORS"]
 
 
 def setup_logging():
@@ -34,7 +36,7 @@ def setup_logging():
 def init_runner() -> src.runner.Runner:
     secrets = src.utils.load_json(SECRETS_PATH)
 
-    apify_proxy_password = secrets.get("APIFY_PROXY_PASSWORD")[-1]
+    apify_proxy_password = secrets.get("APIFY_PROXY_PASSWORD")[PROXY_PASSWORD_POSITION]
 
     proxy_config = src.models.ProxyConfig(
         password=apify_proxy_password,

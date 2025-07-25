@@ -17,6 +17,7 @@ RUN_EVERY = script_config["RUN_EVERY"]
 IS_WOMEN_ALPHA = script_config["IS_WOMEN_ALPHA"]
 SORT_BY_DATE_ALPHA = script_config["SORT_BY_DATE_ALPHA"]
 USE_PROXY_ALPHA = common_config["USE_PROXY_ALPHA"]
+PROXY_PASSWORD_POSITION = common_config["PROXY_PASSWORD_POSITION"]
 
 SECRETS_PATH = common_config["SECRETS_PATH"]
 LOG_DIR = common_config["LOG_DIR"]
@@ -37,7 +38,7 @@ def setup_logging():
 def init_runner() -> src.runner.Runner:
     secrets = src.utils.load_json(SECRETS_PATH)
 
-    apify_proxy_password = secrets.get("APIFY_PROXY_PASSWORD")[-1]
+    apify_proxy_password = secrets.get("APIFY_PROXY_PASSWORD")[PROXY_PASSWORD_POSITION]
 
     proxy_config = src.models.ProxyConfig(
         password=apify_proxy_password,
