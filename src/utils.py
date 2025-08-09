@@ -1,4 +1,4 @@
-from typing import Any, List, Dict
+from typing import Any, List
 
 import json, random, yaml
 from collections import Counter
@@ -34,3 +34,13 @@ def use_proxy_func(current_value: bool, alpha: float) -> bool:
         return True
     else:
         return random.random() < alpha
+
+
+def select_weighted_value(
+    values: List[Any],
+    weights: List[float],
+) -> Any:
+    if len(values) != len(weights):
+        raise ValueError("Values and weights must have the same length")
+
+    return random.choices(values, weights=weights, k=1)[0]

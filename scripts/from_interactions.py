@@ -12,8 +12,8 @@ import src
 config_dict = src.utils.load_yaml("config.yaml")
 
 script_config = src.models.ScriptConfig.from_config_dict(
-    common_config=config_dict["COMMON"],
-    script_config=config_dict["FROM_INTERACTIONS"],
+    config_dict=config_dict,
+    config_key="FROM_INTERACTIONS",
 )
 
 
@@ -52,6 +52,8 @@ def init_runner() -> src.runner.Runner:
         bq_client=bq_client,
         pinecone_index=pinecone_index,
         from_interactions=True,
+        sort_by_date_alpha=script_config.sort_by_date_alpha,
+        days_lookback=script_config.days_lookback,
     )
 
     return src.runner.Runner(config=config, checker=checker)
@@ -95,7 +97,7 @@ async def main():
             namespace=namespace,
             point_id=point_id,
             n=script_config.num_neighbors,
-            days_lookback=script_config.days_lookback,
+            days_lookback=runner.config.days_lookback,
         )
 
         try:

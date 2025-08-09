@@ -95,16 +95,21 @@ def query_items(
     item_ids: Optional[List[str]] = None,
     n: Optional[int] = None,
     is_women: Optional[bool] = None,
+    catalog_score: Optional[CatalogScore] = None,
 ) -> str:
     where_prefix = "\nAND"
 
     query = f"""
-    SELECT i.id, p.point_id, i.vinted_id, i.url, i.category_type
+    SELECT i.id, p.point_id, i.vinted_id, i.url, i.category_type, c.score
     FROM `{PROJECT_ID}.{VINTED_DATASET_ID}.{ITEM_ACTIVE_TABLE_ID}` i
     INNER JOIN `{PROJECT_ID}.{VINTED_DATASET_ID}.{PINECONE_TABLE_ID}` AS p ON i.id = p.item_id
+    INNER JOIN `{PROJECT_ID}.{VINTED_DATASET_ID}.{CATALOG_TABLE_ID}` AS c USING (catalog_id)
     LEFT JOIN `{PROJECT_ID}.{VINTED_DATASET_ID}.{SOLD_TABLE_ID}` AS s USING (vinted_id)
     WHERE s.vinted_id IS NULL
     """
+
+    if catalog_score is not None:
+        query += f"{where_prefix} c.score = {catalog_score}"
 
     if is_women is not None:
         query += f"{where_prefix} women = {is_women}"

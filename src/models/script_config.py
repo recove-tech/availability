@@ -1,5 +1,8 @@
 from dataclasses import dataclass
-from typing import Optional
+from typing import List, Optional, Dict, Any, Literal
+
+
+ScriptConfigKey = Literal["ALL", "FROM_INTERACTIONS", "SAVED"]
 
 
 @dataclass
@@ -15,11 +18,15 @@ class ScriptConfig:
     run_every: Optional[int] = None
     num_neighbors: Optional[int] = None
     days_lookback: Optional[int] = None
+    catalog_score_weights: Optional[List[float]] = None
 
     @classmethod
     def from_config_dict(
-        cls, common_config: dict, script_config: dict
+        cls, config_dict: Dict[str, Any], config_key: ScriptConfigKey
     ) -> "ScriptConfig":
+        common_config = config_dict["COMMON"]
+        script_config = config_dict[config_key]
+
         return cls(
             secrets_path=common_config["SECRETS_PATH"],
             log_dir=common_config["LOG_DIR"],
@@ -31,4 +38,5 @@ class ScriptConfig:
             run_every=script_config.get("RUN_EVERY"),
             num_neighbors=script_config.get("NUM_NEIGHBORS"),
             days_lookback=script_config.get("DAYS_LOOKBACK"),
+            catalog_score_weights=script_config.get("CATALOG_SCORE_WEIGHTS"),
         )

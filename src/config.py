@@ -1,4 +1,4 @@
-from typing import Dict, Tuple, Optional
+from typing import Dict, Tuple, Optional, List
 
 import random
 
@@ -9,7 +9,8 @@ from supabase import Client as SupabaseClient
 from .models import Config
 from .bigquery import init_bigquery_client
 from .supabase import init_supabase_client
-from .enums import PINECONE_INDEX_NAME
+from .enums import PINECONE_INDEX_NAME, CATALOG_SCORE_VALUES
+from .utils import select_weighted_value
 
 
 def init_clients(
@@ -41,6 +42,8 @@ def init_config(
     saved_ascending_alpha: float = 0.0,
     from_interactions: bool = False,
     from_saved: bool = False,
+    catalog_score_weights: Optional[List[float]] = None,
+    days_lookback: Optional[int] = None,
 ) -> Config:
     if from_saved:
         if not supabase_client:
@@ -52,6 +55,14 @@ def init_config(
     sort_by_date = random.random() < sort_by_date_alpha
     is_women = random.random() < is_women_alpha
     ascending_saved = random.random() < saved_ascending_alpha
+    
+    if catalog_score_weights is not None:
+        catalog_score = select_weighted_value(
+            values=CATALOG_SCORE_VALUES,
+            weights=catalog_score_weights,
+        )
+    else:
+        catalog_score = None
 
     config = Config(
         bq_client=bq_client,
@@ -62,6 +73,8 @@ def init_config(
         from_saved=from_saved,
         is_women=is_women,
         ascending_saved=ascending_saved,
+        catalog_score=catalog_score,
+        days_lookback=days_lookback,
     )
 
     return config

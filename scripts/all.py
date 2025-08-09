@@ -12,8 +12,8 @@ import src
 config_dict = src.utils.load_yaml("config.yaml")
 
 script_config = src.models.ScriptConfig.from_config_dict(
-    common_config=config_dict["COMMON"],
-    script_config=config_dict["ALL"],
+    config_dict=config_dict,
+    config_key="ALL",
 )
 
 
@@ -53,6 +53,7 @@ def init_runner() -> src.runner.Runner:
         pinecone_index=pinecone_index,
         is_women_alpha=script_config.is_women_alpha,
         sort_by_date_alpha=script_config.sort_by_date_alpha,
+        catalog_score_weights=script_config.catalog_score_weights,
     )
 
     return src.runner.Runner(config=config, checker=checker)
@@ -65,6 +66,7 @@ def load_from_bigquery(
         "n": script_config.num_items,
         "is_women": runner.config.is_women,
         "sort_by_date": runner.config.sort_by_date,
+        "catalog_score": runner.config.catalog_score,
     }
 
     query = src.bigquery.query_items(**query_kwargs)

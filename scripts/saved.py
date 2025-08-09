@@ -6,18 +6,17 @@ import src
 
 
 config = src.utils.load_yaml("config.yaml")
-common_config = config["COMMON"]
-script_config = config["SAVED"]
 
-NUM_ITEMS = script_config["NUM_ITEMS"]
-JOB_ID = script_config["JOB_ID"]
-ASCENDING_ALPHA = script_config["ASCENDING_ALPHA"]
-USE_PROXY_ALPHA = common_config["USE_PROXY_ALPHA"]
-SECRETS_PATH = common_config["SECRETS_PATH"]
+config_dict = src.utils.load_yaml("config.yaml")
+
+script_config = src.models.ScriptConfig.from_config_dict(
+    config_dict=config_dict,
+    config_key="SAVED",
+)
 
 
 def init_runner() -> src.runner.Runner:
-    secrets = src.utils.load_json(SECRETS_PATH)
+    secrets = src.utils.load_json(script_config.secrets_path)
 
     apify_proxy_password = secrets.get("APIFY_PROXY_PASSWORD")[-1]
 
@@ -34,7 +33,6 @@ def init_runner() -> src.runner.Runner:
         supabase_client=supabase_client,
         pinecone_index=pinecone_index,
         from_saved=True,
-        saved_ascending_alpha=ASCENDING_ALPHA,
     )
 
     return src.runner.Runner(config=config, checker=checker)
@@ -43,7 +41,7 @@ def init_runner() -> src.runner.Runner:
 def get_loader(runner: src.runner.Runner) -> src.models.PineconeDataLoader:
     entries = src.supabase.get_saved_items(
         client=runner.config.supabase_client,
-        n=NUM_ITEMS,
+        n=1000,
         index=runner.config.index,
         ascending=runner.config.ascending_saved,
     )
@@ -53,7 +51,7 @@ def get_loader(runner: src.runner.Runner) -> src.models.PineconeDataLoader:
 
         entries = src.supabase.get_saved_items(
             client=runner.config.supabase_client,
-            n=NUM_ITEMS,
+            n=1000,
             index=runner.config.index,
         )
 
@@ -61,7 +59,7 @@ def get_loader(runner: src.runner.Runner) -> src.models.PineconeDataLoader:
 
 
 async def main():
-    secrets = src.utils.load_json(SECRETS_PATH)
+    secrets = src.utils.load_json(script_config.secrets_path)
     global bq_client, pinecone_index, supabase_client
 
     (
@@ -88,10 +86,8 @@ async def main():
             raise Exception("No entries found")
 
         try:
-            use_proxy = src.utils.use_proxy_func(use_proxy, USE_PROXY_ALPHA)
-
             n_sold_batch, updated, success_rate = await runner.run_async(
-                loader, use_proxy
+                loader, use_proxy=True
             )
 
         except Exception as e:
