@@ -91,18 +91,11 @@ def update_job_index(client: bigquery.Client, job_id: str, index: int) -> bool:
 
 
 def query_items(
-    only_top_brands: bool = False,
-    only_vintage_dressing: bool = False,
     sort_by_date: bool = False,
     item_ids: Optional[List[str]] = None,
     n: Optional[int] = None,
     is_women: Optional[bool] = None,
 ) -> str:
-    if only_vintage_dressing and only_top_brands:
-        raise ValueError(
-            "Cannot set both only_vintage_dressing and only_top_brands to True"
-        )
-
     where_prefix = "\nAND"
 
     query = f"""
@@ -119,13 +112,6 @@ def query_items(
     if item_ids:
         item_ids_str = ", ".join(f"'{item_id}'" for item_id in item_ids)
         query += f"{where_prefix} id IN ({item_ids_str})"
-
-    if only_top_brands:
-        top_brands_str = ", ".join(f'"{brand}"' for brand in TOP_BRANDS)
-        query += f"{where_prefix} brand IN ({top_brands_str})"
-
-    if only_vintage_dressing:
-        query += f"{where_prefix} brand = '{VINTAGE_DRESSING_BRAND}'"
 
     if sort_by_date:
         query += f"\nORDER BY created_at DESC"
