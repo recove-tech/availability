@@ -33,7 +33,7 @@ class BaseAvailabilityChecker(ABC):
         pass
 
     @abstractmethod
-    def run(self, item_ids: List[str]) -> List[Dict]:
+    def run(self, item_ids: List[str], use_proxy: bool = False) -> List[Dict]:
         pass
 
 
@@ -44,7 +44,7 @@ class AsyncAvailabilityChecker(BaseAvailabilityChecker):
         if not item_ids:
             return []
 
-        self._cookies = await self.get_cookies()
+        self._cookies = await self.get_cookies(use_proxy)
         coroutines = [self._run(item_id, use_proxy) for item_id in item_ids]
         results = await asyncio.gather(*coroutines)
 
@@ -62,7 +62,7 @@ class AsyncAvailabilityChecker(BaseAvailabilityChecker):
             "headers": headers,
             "allow_redirects": True,
             "timeout": 30,
-            "proxy": self.proxy_config.url_residential if self.proxy_config else None,
+            "proxy": self.proxy_config.url if self.proxy_config else None,
         }
 
         try:
@@ -96,7 +96,7 @@ class AsyncAvailabilityChecker(BaseAvailabilityChecker):
         }
 
         if use_proxy and self.proxy_config:
-            kwargs["proxy"] = self.proxy_config.url_residential
+            kwargs["proxy"] = self.proxy_config.url
 
         try:
             async with aiohttp.ClientSession() as session:

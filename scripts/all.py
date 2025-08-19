@@ -32,16 +32,16 @@ def setup_logging():
 def init_runner() -> src.runner.Runner:
     secrets = src.utils.load_json(script_config.secrets_path)
 
-    apify_proxy_password = secrets.get("APIFY_PROXY_PASSWORD")[
-        script_config.proxy_password_position
-    ]
+    webshare_config = src.models.WebshareProxyConfig.from_list(
+        proxies=secrets["WEBSHARE_PROXIES"],
+    )
 
-    proxy_config = src.models.ProxyConfig(
-        password=apify_proxy_password,
+    proxy_config = src.models.ProxyConfig.from_webshare(
+        proxy=webshare_config,
     )
 
     checker = src.checker.AsyncAvailabilityChecker(
-        proxy_config=proxy_config,
+        proxy_config=proxy_config,        
     )
 
     bq_client, pinecone_index, _ = src.config.init_clients(

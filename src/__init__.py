@@ -3,6 +3,7 @@ from . import (
     enums,
     pinecone,
     models,
+    checker,
     runner,
     config,
     utils,
