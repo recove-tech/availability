@@ -36,6 +36,12 @@ class BaseAvailabilityChecker(ABC):
     def run(self, item_ids: List[str], use_proxy: bool = False) -> List[Dict]:
         pass
 
+    def check_is_available(self, json_data: Dict) -> bool:
+        item_info = json_data.get("item", {})
+        is_available = bool(item_info and not item_info.get("is_closed", False))
+
+        return is_available
+
 
 class AsyncAvailabilityChecker(BaseAvailabilityChecker):
     async def run(
@@ -44,7 +50,7 @@ class AsyncAvailabilityChecker(BaseAvailabilityChecker):
         if not item_ids:
             return []
 
-        self._cookies = await self.get_cookies(use_proxy)
+        self._cookies = await self.get_cookies()
         coroutines = [self._run(item_id, use_proxy) for item_id in item_ids]
         results = await asyncio.gather(*coroutines)
 
@@ -105,15 +111,10 @@ class AsyncAvailabilityChecker(BaseAvailabilityChecker):
 
                     try:
                         data = await response.json()
-                        item_info = data.get("item", {})
-
-                        is_available = bool(
-                            item_info and not item_info.get("is_closed", False)
-                        )
 
                         return VintedItemStatus(
                             item_id=item_id,
-                            is_available=is_available,
+                            is_available=self.check_is_available(data),
                             status_code=status_code,
                         )
 
@@ -213,12 +214,10 @@ class AvailabilityChecker(BaseAvailabilityChecker):
 
             try:
                 data = response.json()
-                item_info = data.get("item", {})
-                is_available = bool(item_info and not item_info.get("is_closed", False))
 
                 return VintedItemStatus(
                     item_id=item_id,
-                    is_available=is_available,
+                    is_available=self.check_is_available(data),
                     status_code=status_code,
                 )
 
