@@ -28,3 +28,4 @@ RATE_LIMIT_SLEEP_TIME = 30
 
 CatalogScore = Literal[1, 2, 3]
 CATALOG_SCORE_VALUES: List[CatalogScore] = [1, 2, 3]
+CATEGORY_TYPES: List[str] = ["outerwear", "top", "bottom", "dress", "accessories", "footwear"]

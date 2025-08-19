@@ -152,26 +152,26 @@ def query_vector_ids(
 def query_interaction_items(
     n: Optional[int] = None, index: Optional[int] = None, shuffle: bool = False
 ) -> str:
+    category_types_str = ", ".join([f"'{category_type}'" for category_type in CATEGORY_TYPES])
+    
     query = f"""
     WITH
-        Interactions AS (
-        SELECT DISTINCT item_id FROM `{PROJECT_ID}.{PROD_DATASET_ID}.{CLICK_OUT_TABLE_ID}`
-        UNION ALL
-        SELECT DISTINCT item_id FROM `{PROJECT_ID}.{PROD_DATASET_ID}.{SAVED_TABLE_ID}`
-        )
-        , InteractionsWithCategory AS (
-        SELECT item_id, category_type
-        FROM Interactions
-        INNER JOIN `{PROJECT_ID}.{VINTED_DATASET_ID}.{ITEM_ACTIVE_TABLE_ID}` AS i ON Interactions.item_id = i.id
-        )
-        , Data AS (
-        SELECT 
-        p.point_id, 
-        iwc.category_type, 
-        ROW_NUMBER() OVER (PARTITION BY p.point_id ORDER BY p.point_id) AS rn
-        FROM InteractionsWithCategory AS iwc
-        INNER JOIN `{PROJECT_ID}.{VINTED_DATASET_ID}.{PINECONE_TABLE_ID}` AS p USING (item_id)
-        )   
+    Interactions AS (
+    SELECT DISTINCT item_id FROM `{PROJECT_ID}.{PROD_DATASET_ID}.{CLICK_OUT_TABLE_ID}`
+    UNION ALL
+    SELECT DISTINCT item_id FROM `{PROJECT_ID}.{PROD_DATASET_ID}.{SAVED_TABLE_ID}`)
+    , InteractionsWithCategory AS (
+    SELECT item_id, category_type
+    FROM Interactions
+    INNER JOIN `{PROJECT_ID}.{VINTED_DATASET_ID}.{ITEM_ACTIVE_TABLE_ID}` AS i ON Interactions.item_id = i.id)
+    , Data AS (
+    SELECT 
+    p.point_id, 
+    iwc.category_type, 
+    ROW_NUMBER() OVER (PARTITION BY p.point_id ORDER BY p.point_id) AS rn
+    FROM InteractionsWithCategory AS iwc
+    INNER JOIN `{PROJECT_ID}.{VINTED_DATASET_ID}.{PINECONE_TABLE_ID}` AS p USING (item_id)
+    WHERE iwc.category_type IN ({category_types_str}))   
     SELECT point_id, category_type
     FROM Data
     WHERE rn = 1

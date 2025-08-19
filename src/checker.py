@@ -33,8 +33,14 @@ class BaseAvailabilityChecker(ABC):
         pass
 
     @abstractmethod
-    def run(self, item_ids: List[str]) -> List[Dict]:
+    def run(self, item_ids: List[str], use_proxy: bool = False) -> List[Dict]:
         pass
+
+    def check_is_available(self, json_data: Dict) -> bool:
+        item_info = json_data.get("item", {})
+        is_available = bool(item_info and not item_info.get("is_closed", False))
+
+        return is_available
 
 
 class AsyncAvailabilityChecker(BaseAvailabilityChecker):
@@ -62,7 +68,7 @@ class AsyncAvailabilityChecker(BaseAvailabilityChecker):
             "headers": headers,
             "allow_redirects": True,
             "timeout": 30,
-            "proxy": self.proxy_config.url_residential if self.proxy_config else None,
+            "proxy": self.proxy_config.url if self.proxy_config else None,
         }
 
         try:
@@ -96,7 +102,7 @@ class AsyncAvailabilityChecker(BaseAvailabilityChecker):
         }
 
         if use_proxy and self.proxy_config:
-            kwargs["proxy"] = self.proxy_config.url_residential
+            kwargs["proxy"] = self.proxy_config.url
 
         try:
             async with aiohttp.ClientSession() as session:
@@ -105,15 +111,10 @@ class AsyncAvailabilityChecker(BaseAvailabilityChecker):
 
                     try:
                         data = await response.json()
-                        item_info = data.get("item", {})
-
-                        is_available = bool(
-                            item_info and not item_info.get("is_closed", False)
-                        )
 
                         return VintedItemStatus(
                             item_id=item_id,
-                            is_available=is_available,
+                            is_available=self.check_is_available(data),
                             status_code=status_code,
                         )
 
@@ -213,12 +214,10 @@ class AvailabilityChecker(BaseAvailabilityChecker):
 
             try:
                 data = response.json()
-                item_info = data.get("item", {})
-                is_available = bool(item_info and not item_info.get("is_closed", False))
 
                 return VintedItemStatus(
                     item_id=item_id,
-                    is_available=is_available,
+                    is_available=self.check_is_available(data),
                     status_code=status_code,
                 )
 
