@@ -1,5 +1,5 @@
 #!/bin/bash
 cd /home/opc/availability
-source venv/bin/activate
-cd scripts
-python3 all.py 
+source /home/opc/availability/venv/bin/activate
+cd /home/opc/availability/scripts
+/usr/bin/python3 all.py

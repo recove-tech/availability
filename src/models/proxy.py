@@ -1,4 +1,3 @@
-from typing import List, Optional
 from dataclasses import dataclass
 
 
@@ -19,3 +18,7 @@ class ProxyConfig:
     def url_residential(self) -> str:
         username = f"groups-RESIDENTIAL,country-{self.country_code}:{self.password}"
         return f"http://{username}@{self._hostname}:{self._port}"
+
+    @property
+    def url(self) -> str:
+        return self.url_residential
