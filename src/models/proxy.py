@@ -25,8 +25,14 @@ class WebshareProxy:
             host=data["host"],
             port=int(data["port"]),
             username=data["username"],
-            password=data["password"]
+            password=data["password"],
         )
+
+
+@dataclass
+class SimpleProxy:
+    host: str
+    port: int = 80
 
 
 @dataclass
@@ -35,11 +41,11 @@ class WebshareProxyConfig(BaseProxyConfig):
     _last_proxy_host: Optional[str] = None
 
     @property
-    def url(self) -> str:      
+    def url(self) -> str:
         available_proxies = self.get_available_proxies()
         proxy = random.choice(available_proxies)
         self._last_proxy_host = proxy.host
-        
+
         return f"http://{proxy.username}:{proxy.password}@{proxy.host}:{proxy.port}"
 
     @classmethod
@@ -48,17 +54,19 @@ class WebshareProxyConfig(BaseProxyConfig):
         return cls(proxies=proxies)
 
     @classmethod
-    def from_list(cls, proxies: List[Dict[str, str]]) -> Optional["WebshareProxyConfig"]:
+    def from_list(
+        cls, proxies: List[Dict[str, str]]
+    ) -> Optional["WebshareProxyConfig"]:
         if not proxies:
             return None
 
         proxies = [WebshareProxy.from_dict(p) for p in proxies]
-        
+
         return cls(proxies=proxies)
 
     def get_available_proxies(self) -> List[WebshareProxy]:
         available_proxies = [p for p in self.proxies if p.host != self._last_proxy_host]
-        
+
         if not available_proxies:
             available_proxies = self.proxies
 
@@ -88,6 +96,33 @@ class ApifyProxyConfig(BaseProxyConfig):
 
 
 @dataclass
+class SimpleProxyConfig(BaseProxyConfig):
+    proxies: List[SimpleProxy]
+    _last_proxy_host: Optional[str] = None
+
+    @property
+    def url(self) -> str:
+        available_proxies = self.get_available_proxies()
+        proxy = random.choice(available_proxies)
+        self._last_proxy_host = proxy.host
+
+        return f"http://{proxy.host}:{proxy.port}"
+
+    @classmethod
+    def from_list(cls, ips: List[str], port: int = 80) -> "SimpleProxyConfig":
+        proxies = [SimpleProxy(host=ip, port=port) for ip in ips]
+        return cls(proxies=proxies)
+
+    def get_available_proxies(self) -> List[SimpleProxy]:
+        available_proxies = [p for p in self.proxies if p.host != self._last_proxy_host]
+
+        if not available_proxies:
+            available_proxies = self.proxies
+
+        return available_proxies
+
+
+@dataclass
 class ProxyConfig(BaseProxyConfig):
     _proxy: BaseProxyConfig
 
@@ -102,3 +137,7 @@ class ProxyConfig(BaseProxyConfig):
     @classmethod
     def from_apify(cls, proxy: ApifyProxyConfig) -> "ProxyConfig":
         return cls(_proxy=proxy)
+
+    @classmethod
+    def from_ip_list(cls, ips: List[str], port: int = 80) -> "ProxyConfig":
+        return cls(_proxy=SimpleProxyConfig.from_list(ips, port=port))
