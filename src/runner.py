@@ -83,7 +83,6 @@ class Runner:
         vinted_ids: List[str],
         point_ids: Dict[str, List[str]],
     ) -> Optional[bool]:
-        current_time = datetime.now().isoformat()
         success_rate = 0.0
 
         for namespace, namespace_point_ids in point_ids.items():

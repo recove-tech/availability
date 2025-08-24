@@ -64,7 +64,7 @@ def load_data(runner: src.runner.Runner) -> Tuple[List[str], List[str]]:
         n=script_config.num_items,
         shuffle=True,
     )
-    
+
     loader = src.bigquery.run_query(
         client=runner.config.bq_client, query=query, to_list=False
     )

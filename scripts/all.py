@@ -41,7 +41,7 @@ def init_runner() -> src.runner.Runner:
     )
 
     checker = src.checker.AsyncAvailabilityChecker(
-        proxy_config=proxy_config,        
+        proxy_config=proxy_config,
     )
 
     bq_client, pinecone_index, _ = src.config.init_clients(

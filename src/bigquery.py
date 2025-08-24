@@ -152,8 +152,10 @@ def query_vector_ids(
 def query_interaction_items(
     n: Optional[int] = None, index: Optional[int] = None, shuffle: bool = False
 ) -> str:
-    category_types_str = ", ".join([f"'{category_type}'" for category_type in CATEGORY_TYPES])
-    
+    category_types_str = ", ".join(
+        [f"'{category_type}'" for category_type in CATEGORY_TYPES]
+    )
+
     query = f"""
     WITH
     Interactions AS (

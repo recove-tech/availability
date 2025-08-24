@@ -55,7 +55,7 @@ def init_config(
     sort_by_date = random.random() < sort_by_date_alpha
     is_women = random.random() < is_women_alpha
     ascending_saved = random.random() < saved_ascending_alpha
-    
+
     if catalog_score_weights is not None:
         catalog_score = select_weighted_value(
             values=CATALOG_SCORE_VALUES,

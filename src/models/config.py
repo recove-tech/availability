@@ -23,7 +23,7 @@ class Config:
     days_lookback: Optional[int] = None
 
     def __post_init__(self):
-        if not self.sort_by_date: 
+        if not self.sort_by_date:
             self.days_lookback = None
 
         self._get_id()
