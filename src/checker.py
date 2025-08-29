@@ -1,7 +1,7 @@
 from typing import Dict, List, Optional
 from abc import ABC, abstractmethod
 
-import logging, asyncio, aiohttp
+import logging, asyncio, aiohttp, time
 import requests
 from tqdm import tqdm
 
@@ -155,7 +155,12 @@ class AvailabilityChecker(BaseAvailabilityChecker):
 
         return results
 
-    def get_cookies(self) -> Dict:
+    def get_cookies(
+        self, retry_count: int = 0, sleep_time: int = INITIAL_SLEEP_TIME
+    ) -> Dict:
+        if retry_count >= MAX_RETRIES:
+            raise Exception(f"Failed to get cookies after {MAX_RETRIES} retries")
+
         headers = {**self.BASE_HEADERS, "Referer": self.BASE_URL}
 
         kwargs = {
@@ -174,13 +179,18 @@ class AvailabilityChecker(BaseAvailabilityChecker):
             response = requests.get(self.BASE_URL, **kwargs)
 
             if not response.ok:
-                raise Exception(f"Failed to get cookies: {response.status_code}")
+                time.sleep(min(sleep_time, MAX_SLEEP_TIME))
+                return self.get_cookies(retry_count + 1, sleep_time * 2)
 
             return {cookie.name: cookie.value for cookie in response.cookies}
 
         except Exception as e:
-            self.logger.error(f"Error getting cookies: {e}")
-            raise
+            self.logger.error(
+                f"Error getting cookies (attempt {retry_count + 1}/{MAX_RETRIES}): {e}"
+            )
+            time.sleep(min(sleep_time, MAX_SLEEP_TIME))
+
+            return self.get_cookies(retry_count + 1, sleep_time * 2)
 
     def _run(self, item_id: str) -> VintedItemStatus:
         headers = {**self.BASE_HEADERS, "Referer": self.BASE_URL}

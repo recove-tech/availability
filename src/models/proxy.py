@@ -46,7 +46,7 @@ class WebshareProxyConfig(BaseProxyConfig):
         proxy = random.choice(available_proxies)
         self._last_proxy_host = proxy.host
 
-        return f"http://{proxy.username}:{proxy.password}@{proxy.host}:{proxy.port}"
+        return f"http://{proxy.username}:{proxy.password}@{proxy.host}:{proxy.port}/"
 
     @classmethod
     def from_dict(cls, data: Dict[str, str]) -> "WebshareProxyConfig":
