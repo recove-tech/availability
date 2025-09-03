@@ -121,6 +121,7 @@ class AsyncAvailabilityChecker(BaseAvailabilityChecker):
                     except Exception as e:
                         return VintedItemStatus(
                             item_id=item_id,
+                            is_available=False,
                             status_code=status_code,
                             error=f"Failed to parse response: {str(e)}",
                         )
@@ -128,6 +129,7 @@ class AsyncAvailabilityChecker(BaseAvailabilityChecker):
         except Exception as e:
             return VintedItemStatus(
                 item_id=item_id,
+                is_available=False,
                 status_code=505,
                 error=str(e),
             )
