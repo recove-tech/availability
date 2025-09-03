@@ -53,7 +53,7 @@ def init_runner() -> src.runner.Runner:
         pinecone_index=pinecone_index,
         from_interactions=True,
         sort_by_date_alpha=script_config.sort_by_date_alpha,
-        days_lookback=script_config.days_lookback,
+        # days_lookback=script_config.days_lookback,
     )
 
     return src.runner.Runner(config=config, checker=checker)
