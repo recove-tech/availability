@@ -78,7 +78,7 @@ async def main():
     n, n_sold, success_rate_list = 0, 0, []
 
     while True:
-        print(f"Config: {runner.config.id} | Index: {runner.config.index}")
+        print(f"Config: {runner.config}")
 
         loader = get_loader(runner)
 

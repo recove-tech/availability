@@ -1,15 +1,13 @@
 from typing import List, Tuple, Optional, Dict
 from collections import defaultdict
 from datetime import datetime
-import asyncio, random
 
-from google.cloud import bigquery
 
 from src.models import Config, PineconeDataLoader
 from src.bigquery import query_pinecone_points, run_query, insert_rows_json
 from src.supabase import set_items_unavailable
 from src.pinecone import delete_points_from_ids
-from src.checker import BaseAvailabilityChecker, AsyncAvailabilityChecker
+from src.checker import BaseAvailabilityChecker
 
 
 SUCCESS_RATE_THRESHOLD = 0.9
@@ -83,7 +81,6 @@ class Runner:
         vinted_ids: List[str],
         point_ids: Dict[str, List[str]],
     ) -> Optional[bool]:
-        current_time = datetime.now().isoformat()
         success_rate = 0.0
 
         for namespace, namespace_point_ids in point_ids.items():
@@ -119,7 +116,7 @@ class Runner:
         if success_rate > SUCCESS_RATE_THRESHOLD:
             return insert_rows_json(
                 client=self.config.bq_client,
-                vinted_ids=vinted_ids,
+                item_ids=vinted_ids,
             )
 
         return False
