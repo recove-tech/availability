@@ -60,9 +60,9 @@ def query_items(
     where_prefix = "\nAND"
 
     query = f"""
-SELECT i.id, p.point_id, i.vinted_id, i.url, i.category_type, c.score
-FROM `{PROJECT_ID}.{VINTED_DATASET_ID}.{ITEM_ACTIVE_TABLE_ID}` i
-INNER JOIN `{PROJECT_ID}.{VINTED_DATASET_ID}.{PINECONE_TABLE_ID}` AS p ON i.id = p.item_id
+SELECT item.id, p.point_id, item.vinted_id, item.url, item.category_type, c.score
+FROM `{PROJECT_ID}.{VINTED_DATASET_ID}.{ITEM_ACTIVE_TABLE_ID}` item
+INNER JOIN `{PROJECT_ID}.{VINTED_DATASET_ID}.{PINECONE_TABLE_ID}` AS p ON item.id = p.item_id
 INNER JOIN `{PROJECT_ID}.{VINTED_DATASET_ID}.{CATALOG_TABLE_ID}` AS c USING (catalog_id)
 LEFT JOIN `{PROJECT_ID}.{VINTED_DATASET_ID}.{SOLD_TABLE_ID}` AS s USING (vinted_id)
 WHERE s.vinted_id IS NULL
@@ -79,7 +79,7 @@ WHERE s.vinted_id IS NULL
         query += f"{where_prefix} id IN ({item_ids_str})"
 
     if sort_by_date:
-        query += f"\nORDER BY i.created_at DESC"
+        query += f"\nORDER BY item.created_at DESC"
     else:
         query += f"\nORDER BY RAND()"
 
@@ -123,7 +123,7 @@ SELECT DISTINCT item_id FROM `{PROJECT_ID}.{PROD_DATASET_ID}.{SAVED_TABLE_ID}`)
 , InteractionsWithCategory AS (
 SELECT item_id, category_type
 FROM Interactions
-INNER JOIN `{PROJECT_ID}.{VINTED_DATASET_ID}.{ITEM_ACTIVE_TABLE_ID}` AS i ON Interactions.item_id = i.id)
+INNER JOIN `{PROJECT_ID}.{VINTED_DATASET_ID}.{ITEM_ACTIVE_TABLE_ID}` AS i ON Interactions.item_id = item.id)
 , Data AS (
 SELECT 
 p.point_id, 
@@ -163,8 +163,8 @@ def query_points_to_delete(lookback_days: int) -> str:
     return f"""
 SELECT DISTINCT p.point_id
 FROM `{PROJECT_ID}.{VINTED_DATASET_ID}.{PINECONE_TABLE_ID}` AS p
-INNER JOIN `{PROJECT_ID}.{VINTED_DATASET_ID}.{ITEM_ACTIVE_TABLE_ID}` AS i ON p.item_id = i.id
-WHERE DATE(i.created_at) < DATE_SUB(CURRENT_DATE(), INTERVAL {lookback_days} DAY);
+INNER JOIN `{PROJECT_ID}.{VINTED_DATASET_ID}.{ITEM_ACTIVE_TABLE_ID}` AS i ON p.item_id = item.id
+WHERE DATE(item.created_at) < DATE_SUB(CURRENT_DATE(), INTERVAL {lookback_days} DAY);
     """
 
 
@@ -173,15 +173,15 @@ def query_delete_points(lookback_days: int) -> bool:
 CREATE OR REPLACE TABLE `{PROJECT_ID}.{VINTED_DATASET_ID}.{PINECONE_TABLE_ID}` AS
 SELECT p.*
 FROM `{PROJECT_ID}.{VINTED_DATASET_ID}.{PINECONE_TABLE_ID}` p
-INNER JOIN `{PROJECT_ID}.{VINTED_DATASET_ID}.{ITEM_TABLE_ID}` i ON p.item_id = i.id
-WHERE DATE(i.created_at) >= DATE_SUB(CURRENT_DATE(), INTERVAL {lookback_days} DAY)
+INNER JOIN `{PROJECT_ID}.{VINTED_DATASET_ID}.{ITEM_TABLE_ID}` i ON p.item_id = item.id
+WHERE DATE(item.created_at) >= DATE_SUB(CURRENT_DATE(), INTERVAL {lookback_days} DAY)
     """
 
 
 def query_delete_items(lookback_days: int) -> bool:
     return f"""
 DELETE FROM `{PROJECT_ID}.{VINTED_DATASET_ID}.{ITEM_TABLE_ID}`
-WHERE DATE(created_at) < DATE_SUB(CURRENT_DATE(), INTERVAL {lookback_days} DAY);
+WHERE DATE(item.created_at) < DATE_SUB(CURRENT_DATE(), INTERVAL {lookback_days} DAY);
     """
 
 
