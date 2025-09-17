@@ -79,7 +79,7 @@ WHERE s.vinted_id IS NULL
         query += f"{where_prefix} id IN ({item_ids_str})"
 
     if sort_by_date:
-        query += f"\nORDER BY created_at DESC"
+        query += f"\nORDER BY i.created_at DESC"
     else:
         query += f"\nORDER BY RAND()"
 
